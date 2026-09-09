@@ -180,9 +180,24 @@
   }
   .vf-placeholder{
     position:absolute; inset:0;
-    display:flex; align-items:center; justify-content:center;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
     color:#8FA2B4; font-size:13px; text-align:center; padding:24px;
   }
+  .face-guide{
+    position:absolute; left:50%; top:46%; width:60%; aspect-ratio:3/4;
+    transform:translate(-50%,-50%);
+    border:2px dashed rgba(231,217,170,.55); border-radius:50%;
+    display:none; pointer-events:none;
+  }
+  .viewfinder.scanning .face-guide{display:block;}
+  .viewfinder.ok .face-guide{border-color:rgba(47,111,78,.7); border-style:solid;}
+  .viewfinder.warn .face-guide{border-color:rgba(140,47,47,.7); border-style:solid;}
+  .countdown{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    font-family:'Fraunces',serif; font-size:64px; font-weight:600; color:#fff;
+    text-shadow:0 2px 12px rgba(0,0,0,.6); pointer-events:none;
+  }
+  .countdown.show{display:flex;}
 
   .cam-actions{display:flex; gap:10px; margin-top:14px;}
   button{
@@ -245,7 +260,7 @@
   .checklist{list-style:none; margin:0 0 16px; padding:0; display:flex; flex-direction:column; gap:8px;}
   .checklist li{
     display:flex; align-items:center; gap:10px; font-size:13.5px; color:var(--ink-soft);
-    padding:10px 12px; border-radius:11px; background:var(--paper-dim);
+    padding:13px 14px; border-radius:11px; background:var(--paper-dim);
     transition:background .25s ease, color .25s ease;
   }
   .checklist li .dot{
@@ -258,7 +273,25 @@
   .checklist li.fail{background:var(--danger-bg); color:var(--danger);}
   .checklist li.fail .dot{background:var(--danger); border-color:var(--danger); color:#fff;}
 
-  .gps-line{font-size:12px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; margin-top:4px;}
+  .gps-block{margin:2px 0 16px;}
+  .gps-distance{display:block; font-family:'Fraunces',serif; font-size:17px; font-weight:600; color:var(--ink);}
+  .gps-detail{display:block; font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; margin-top:2px;}
+
+  .ready-hint{
+    text-align:center; font-size:13px; font-weight:600; color:var(--success);
+    margin-bottom:8px; display:none;
+  }
+  .ready-hint.show{display:block;}
+  .btn-primary-full.ready{
+    background:linear-gradient(155deg,#3C8562,var(--success));
+    box-shadow:0 10px 24px -8px rgba(47,111,78,.5);
+  }
+  .btn-primary-full.ready:hover{background:linear-gradient(155deg,#357556,#255c40);}
+
+  .trust-badge{
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:11px; color:var(--ink-soft); margin-top:6px;
+  }
 
   #resultado{margin-top:16px;}
   #resultado .banner{
@@ -330,13 +363,20 @@
     <p class="hint">Centra tu rostro en el marco y mantente inmóvil. La foto solo se usa como evidencia y para comparar contra tu foto de referencia.</p>
 
     <div class="viewfinder" id="viewfinder">
-      <div class="vf-placeholder" id="vfPlaceholder">La cámara aparecerá aquí al presionar «Activar cámara»</div>
+      <div class="vf-placeholder" id="vfPlaceholder">
+        <svg width="96" height="120" viewBox="0 0 96 120" fill="none" style="opacity:.35;margin-bottom:10px;">
+          <ellipse cx="48" cy="52" rx="38" ry="48" stroke="#C7D2DD" stroke-width="2" stroke-dasharray="6 6"/>
+        </svg>
+        <span>Toca «Activar cámara» y centra tu rostro en el óvalo</span>
+      </div>
       <video id="video" autoplay muted playsinline style="display:none;"></video>
       <canvas id="overlay" style="display:none;"></canvas>
+      <div class="face-guide"></div>
+      <div class="countdown" id="countdown"></div>
       <div class="scan-line"></div>
       <div class="corner tl"></div><div class="corner tr"></div>
       <div class="corner bl"></div><div class="corner br"></div>
-      <div class="vf-status"><span id="vfStatusText">Cámara inactiva</span></div>
+      <div class="vf-status"><span id="vfStatusText">Prepara tu rostro frente a la cámara</span></div>
     </div>
 
     <div class="cam-actions">
@@ -352,8 +392,12 @@
       <li id="chk-gps"><span class="dot">✓</span> Ubicación GPS obtenida</li>
       <li id="chk-sede"><span class="dot">✓</span> Dentro del radio de tu sede</li>
     </ul>
-    <div class="gps-line" id="gpsLine">Ubicación: sin datos aún</div>
+    <div class="gps-block" id="gpsBlock">
+      <span class="gps-distance" id="gpsDistance">Buscando tu ubicación…</span>
+      <span class="gps-detail" id="gpsDetail"></span>
+    </div>
 
+    <div class="ready-hint" id="readyHint">✅ Todo listo para registrar</div>
     <button class="btn-primary-full" id="btnRegistrar" disabled>Registrar asistencia</button>
 
     <div id="resultado">
@@ -366,7 +410,12 @@
 
 <footer>
   Los datos capturados (foto, ubicación y hora) se usan únicamente para control de asistencia.
-  <br><span class="tag" id="modelStatus">Cargando modelo de reconocimiento…</span>
+  <br><span class="tag" id="modelStatus">Verificando sistema…</span>
+  <br>
+  <span class="trust-badge">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    Datos cifrados · Solo uso interno
+  </span>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
@@ -499,6 +548,8 @@ const vfPlaceholder = document.getElementById("vfPlaceholder");
 const vfStatusText = document.getElementById("vfStatusText");
 const btnCamara = document.getElementById("btnCamara");
 const btnCapturar = document.getElementById("btnCapturar");
+const countdownEl = document.getElementById("countdown");
+let cuentaRegresivaTimer = null;
 
 btnCamara.addEventListener("click", async ()=>{
   if(stream){ apagarCamara(); return; }
@@ -510,23 +561,48 @@ btnCamara.addEventListener("click", async ()=>{
     viewfinder.classList.add("scanning");
     btnCamara.textContent = "Apagar cámara";
     btnCapturar.disabled = !modeloListo;
-    vfStatusText.textContent = modeloListo ? "Buscando rostro…" : "Cargando modelo…";
+    vfStatusText.textContent = modeloListo ? "Buscando tu rostro…" : "Verificando sistema…";
+    if(modeloListo) iniciarCuentaRegresiva();
   }catch(err){
     vfStatusText.textContent = "No se pudo acceder a la cámara";
   }
 });
 
+/* Cuenta regresiva automática antes de capturar — el botón "Capturar rostro"
+   sigue disponible para quien prefiera tomarla manualmente antes de tiempo. */
+function iniciarCuentaRegresiva(){
+  clearTimeout(cuentaRegresivaTimer);
+  let n = 3;
+  countdownEl.textContent = n;
+  countdownEl.classList.add("show");
+  const paso = ()=>{
+    n--;
+    if(n <= 0 || !stream){
+      countdownEl.classList.remove("show");
+      if(stream) btnCapturar.click();
+      return;
+    }
+    countdownEl.textContent = n;
+    cuentaRegresivaTimer = setTimeout(paso, 900);
+  };
+  cuentaRegresivaTimer = setTimeout(paso, 900);
+}
+
 function apagarCamara(){
   if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  clearTimeout(cuentaRegresivaTimer);
+  countdownEl.classList.remove("show");
   video.style.display="none";
   vfPlaceholder.style.display="flex";
   viewfinder.classList.remove("scanning");
   btnCamara.textContent = "Activar cámara";
   btnCapturar.disabled = true;
-  vfStatusText.textContent = "Cámara inactiva";
+  vfStatusText.textContent = "Prepara tu rostro frente a la cámara";
 }
 
 btnCapturar.addEventListener("click", async ()=>{
+  clearTimeout(cuentaRegresivaTimer);
+  countdownEl.classList.remove("show");
   viewfinder.classList.remove("scanning");
   const canvas = document.createElement("canvas");
   canvas.width = video.videoWidth; canvas.height = video.videoHeight;
@@ -565,8 +641,8 @@ btnCapturar.addEventListener("click", async ()=>{
     await faceapi.nets.faceLandmark68Net.loadFromUri(CONFIG.MODEL_URL);
     await faceapi.nets.faceRecognitionNet.loadFromUri(CONFIG.MODEL_URL);
     modeloListo = true;
-    document.getElementById("modelStatus").textContent = "Modelo de reconocimiento listo";
-    if(stream) { btnCapturar.disabled = false; vfStatusText.textContent = "Buscando rostro…"; }
+    document.getElementById("modelStatus").textContent = "Sistema verificado. Listo para validarte";
+    if(stream) { btnCapturar.disabled = false; vfStatusText.textContent = "Buscando tu rostro…"; iniciarCuentaRegresiva(); }
     if(empleadoActual && empleadoActual.fotoUrl && !empleadoActual.descriptorRef){
       calcularDescriptorReferencia(empleadoActual.fotoUrl);
     }
@@ -584,22 +660,38 @@ function metrosEntre(lat1,lng1,lat2,lng2){
   return R * 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
+function formatoDistancia(m){
+  return m >= 1000 ? `${(m/1000).toFixed(1)} km` : `${Math.round(m)} m`;
+}
+
 function evaluarRadio(){
-  if(!ubicacion || !sedeSeleccionada || sedeSeleccionada.lat===null){ dentroDeRadio = sedeSeleccionada && sedeSeleccionada.lat===null ? true : null; actualizarChecklist(); return; }
+  const gpsDistancia = document.getElementById("gpsDistance");
+  const gpsDetalle = document.getElementById("gpsDetail");
+  if(!ubicacion || !sedeSeleccionada || sedeSeleccionada.lat===null){
+    dentroDeRadio = sedeSeleccionada && sedeSeleccionada.lat===null ? true : null;
+    if(ubicacion && sedeSeleccionada && sedeSeleccionada.lat===null){
+      gpsDistancia.textContent = "Sede móvil · sin geocerca";
+      gpsDetalle.textContent = `${ubicacion.lat.toFixed(5)}, ${ubicacion.lng.toFixed(5)} · precisión ±${Math.round(ubicacion.accuracy)} m`;
+    }
+    actualizarChecklist();
+    return;
+  }
   const dist = metrosEntre(ubicacion.lat, ubicacion.lng, sedeSeleccionada.lat, sedeSeleccionada.lng);
   dentroDeRadio = dist <= sedeSeleccionada.radioMetros;
-  document.getElementById("gpsLine").textContent =
-    `Ubicación: ${ubicacion.lat.toFixed(5)}, ${ubicacion.lng.toFixed(5)} · precisión ±${Math.round(ubicacion.accuracy)} m · ${Math.round(dist)} m de tu sede`;
+  gpsDistancia.textContent = dentroDeRadio
+    ? `Dentro de tu sede · a ${formatoDistancia(dist)}`
+    : `A ${formatoDistancia(dist)} de tu sede`;
+  gpsDistancia.style.color = dentroDeRadio ? "var(--success)" : "var(--danger)";
+  gpsDetalle.textContent = `${ubicacion.lat.toFixed(5)}, ${ubicacion.lng.toFixed(5)} · precisión ±${Math.round(ubicacion.accuracy)} m`;
   actualizarChecklist();
 }
 
 navigator.geolocation && navigator.geolocation.getCurrentPosition(
   pos=>{
     ubicacion = { lat:pos.coords.latitude, lng:pos.coords.longitude, accuracy:pos.coords.accuracy };
-    document.getElementById("gpsLine").textContent = `Ubicación obtenida · precisión ±${Math.round(ubicacion.accuracy)} m`;
     evaluarRadio();
   },
-  ()=>{ document.getElementById("gpsLine").textContent = "No se pudo obtener tu ubicación. Actívala e intenta de nuevo."; },
+  ()=>{ document.getElementById("gpsDistance").textContent = "No se pudo obtener tu ubicación. Actívala e intenta de nuevo."; },
   { enableHighAccuracy:true, timeout:10000 }
 );
 
@@ -616,7 +708,10 @@ function actualizarChecklist(){
   marcar("chk-gps", ubicacion===null ? null : true);
   marcar("chk-sede", dentroDeRadio);
   const listo = rostroValidado && ubicacion!==null && dentroDeRadio!==false && empleadoActual!==null;
-  document.getElementById("btnRegistrar").disabled = !listo;
+  const btn = document.getElementById("btnRegistrar");
+  btn.disabled = !listo;
+  btn.classList.toggle("ready", listo);
+  document.getElementById("readyHint").classList.toggle("show", listo);
 }
 
 /* ======================= ENVÍO DE REGISTRO ======================= */
