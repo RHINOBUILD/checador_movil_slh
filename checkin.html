@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Check-in · Grupo Saint Luke's Hospitals</title>
+<style>
+  :root{
+    --navy-950:#0A1F33; --navy-900:#0D2740; --navy-800:#123354;
+    --gold-500:#B08D2C; --gold-400:#C7A63F; --gold-200:#E7D9AA;
+    --paper:#F6F4EF; --paper-dim:#EDEAE1; --ink:#16202B; --ink-soft:#4A5560;
+    --line:#DEDACE; --success:#2F6F4E; --success-bg:#E4EEE8;
+    --danger:#8C2F2F; --danger-bg:#F3E4E2;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:'IBM Plex Sans',system-ui,sans-serif;
+    min-height:100vh; display:flex; flex-direction:column;
+  }
+  header{
+    background:linear-gradient(165deg, var(--navy-900) 0%, var(--navy-950) 100%);
+    color:#fff; padding:20px 18px;
+  }
+  header .grupo{font-size:11px; letter-spacing:.02em; color:var(--gold-200); font-family:monospace;}
+  header h1{font-size:20px; margin:2px 0 0; font-weight:600;}
+  main{flex:1; max-width:480px; width:100%; margin:0 auto; padding:18px 16px 32px;}
+  .card{
+    background:#fff; border:1px solid var(--line); border-radius:14px;
+    padding:18px; margin-bottom:14px;
+  }
+  .empleado{font-size:15px; font-weight:600; margin-bottom:2px;}
+  .rol-tag{
+    display:inline-block; font-size:11px; padding:3px 9px; border-radius:999px;
+    background:var(--paper-dim); color:var(--ink-soft); margin-bottom:12px;
+  }
+  .gps-line{font-size:13px; color:var(--ink-soft); margin-bottom:4px;}
+  .gps-line.ok{color:var(--success);}
+  .gps-line.warn{color:var(--danger);}
+  .opciones{display:flex; flex-direction:column; gap:8px; margin:14px 0;}
+  .opciones button{
+    text-align:left; padding:14px 16px; border-radius:11px; border:1.5px solid var(--line);
+    background:#fff; font-size:14.5px; font-weight:500; color:var(--ink); cursor:pointer;
+  }
+  .opciones button.selected{
+    border-color:var(--gold-500); background:var(--paper-dim); font-weight:600;
+  }
+  textarea{
+    width:100%; min-height:70px; padding:10px; border:1.5px solid var(--line);
+    border-radius:10px; font-family:inherit; font-size:14px; resize:vertical;
+  }
+  label{display:block; font-size:12.5px; font-weight:600; color:var(--ink-soft); margin:14px 0 6px;}
+  .btn-enviar{
+    width:100%; padding:15px; border:none; border-radius:11px; font-size:15px; font-weight:600;
+    background:linear-gradient(155deg,var(--navy-800),var(--navy-950)); color:#fff; margin-top:16px;
+  }
+  .btn-enviar:disabled{opacity:.45;}
+  .banner{border-radius:10px; padding:14px; font-size:14px; margin-top:14px; display:none;}
+  .banner.show{display:block;}
+  .banner.ok{background:var(--success-bg); color:var(--success);}
+  .banner.error{background:var(--danger-bg); color:var(--danger);}
+  .loading, .no-encontrado{text-align:center; color:var(--ink-soft); padding:40px 16px; font-size:14px;}
+</style>
+</head>
+<body>
+<header>
+  <span class="grupo">GRUPO SAINT LUKE'S HOSPITALS</span>
+  <h1>Check-in periódico</h1>
+</header>
+
+<main id="app">
+  <div class="loading" id="cargando">Cargando tus datos…</div>
+</main>
+
+<script>
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwACgICyzfm1_0VB3DrKHO42AdKq_XWdzCuQfUVh_pWKg1GfIeSFrCzFDtZhkSQQhXFWA/exec";
+
+const params = new URLSearchParams(window.location.search);
+const numero = params.get("numero");
+
+let datosColaborador = null;
+let ubicacion = null;
+let opcionSeleccionada = null;
+
+function metrosEntre(lat1,lng1,lat2,lng2){
+  const R = 6371000;
+  const toRad = d => d*Math.PI/180;
+  const dLat = toRad(lat2-lat1), dLng = toRad(lng2-lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return R * 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+async function iniciar(){
+  const app = document.getElementById("app");
+  if(!numero){
+    app.innerHTML = '<div class="no-encontrado">Falta el número de empleado en el enlace. Abre el check-in desde la notificación push.</div>';
+    return;
+  }
+
+  try{
+    const resp = await fetch(`${APPS_SCRIPT_URL}?action=datosCheckIn&numero=${encodeURIComponent(numero)}`);
+    const data = await resp.json();
+    if(!data.encontrado || !data.activo){
+      app.innerHTML = '<div class="no-encontrado">No estás dado de alta para check-ins periódicos, o tu registro está inactivo.</div>';
+      return;
+    }
+    datosColaborador = data;
+    renderFormulario();
+    pedirUbicacion();
+  }catch(err){
+    app.innerHTML = '<div class="no-encontrado">No se pudo conectar con el servidor. Verifica tu conexión e intenta de nuevo.</div>';
+  }
+}
+
+function renderFormulario(){
+  const app = document.getElementById("app");
+  const esComercial = datosColaborador.rol === "Comercial";
+
+  app.innerHTML = `
+    <div class="card">
+      <div class="empleado">${datosColaborador.nombre}</div>
+      <span class="rol-tag">${datosColaborador.rol === "Ambulancia" ? "Ambulancias" : "Comercial"}</span>
+      <div class="gps-line" id="gpsLine">Obteniendo tu ubicación…</div>
+    </div>
+
+    <div class="card">
+      <label>${esComercial ? "¿Qué actividad realizaste en esta última hora?" : "¿Cuál es tu estado actual?"}</label>
+      <div class="opciones" id="opciones">
+        ${datosColaborador.opciones.map(op => `<button type="button" data-op="${op}">${op}</button>`).join("")}
+      </div>
+
+      ${esComercial ? `
+        <label for="comentario">Comentario (opcional)</label>
+        <textarea id="comentario" placeholder="Detalles adicionales…"></textarea>
+      ` : ""}
+
+      <button class="btn-enviar" id="btnEnviar" disabled>Enviar check-in</button>
+      <div class="banner" id="bannerOk">✅ Check-in registrado. ¡Gracias!</div>
+      <div class="banner" id="bannerError"><span id="bannerErrorText"></span></div>
+    </div>
+  `;
+
+  document.querySelectorAll("#opciones button").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll("#opciones button").forEach(b=>b.classList.remove("selected"));
+      btn.classList.add("selected");
+      opcionSeleccionada = btn.dataset.op;
+      actualizarBotonEnviar();
+    });
+  });
+
+  document.getElementById("btnEnviar").addEventListener("click", enviarCheckIn);
+}
+
+function pedirUbicacion(){
+  if(!navigator.geolocation){
+    document.getElementById("gpsLine").textContent = "Tu navegador no soporta geolocalización.";
+    document.getElementById("gpsLine").classList.add("warn");
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      ubicacion = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      const gpsLine = document.getElementById("gpsLine");
+
+      if(datosColaborador.rol === "Comercial" && datosColaborador.latRef){
+        const dist = metrosEntre(ubicacion.lat, ubicacion.lng, datosColaborador.latRef, datosColaborador.lngRef);
+        const dentro = dist <= datosColaborador.radioPermitidoM;
+        ubicacion.dentroDeZona = dentro;
+        gpsLine.textContent = dentro
+          ? `Dentro de tu zona · a ${Math.round(dist)} m`
+          : `Fuera de tu zona · a ${Math.round(dist)} m`;
+        gpsLine.classList.add(dentro ? "ok" : "warn");
+      } else {
+        ubicacion.dentroDeZona = null;
+        gpsLine.textContent = "Ubicación obtenida";
+        gpsLine.classList.add("ok");
+      }
+      actualizarBotonEnviar();
+    },
+    ()=>{
+      const gpsLine = document.getElementById("gpsLine");
+      gpsLine.textContent = "No se pudo obtener tu ubicación. Actívala e intenta de nuevo.";
+      gpsLine.classList.add("warn");
+    },
+    { enableHighAccuracy:true, timeout:10000 }
+  );
+}
+
+function actualizarBotonEnviar(){
+  const btn = document.getElementById("btnEnviar");
+  if(!btn) return;
+  btn.disabled = !(ubicacion && opcionSeleccionada);
+}
+
+async function enviarCheckIn(){
+  const btn = document.getElementById("btnEnviar");
+  btn.disabled = true;
+  btn.textContent = "Enviando…";
+
+  const esComercial = datosColaborador.rol === "Comercial";
+  const payload = {
+    tipo: "checkin",
+    numeroEmpleado: datosColaborador.numero,
+    nombre: datosColaborador.nombre,
+    rol: datosColaborador.rol,
+    lat: ubicacion.lat,
+    lng: ubicacion.lng,
+    dentroDeZona: ubicacion.dentroDeZona,
+    estado: esComercial ? "" : opcionSeleccionada,
+    actividad: esComercial ? opcionSeleccionada : "",
+    comentario: esComercial ? (document.getElementById("comentario")?.value || "") : ""
+  };
+
+  try{
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method:"POST",
+      headers:{ "Content-Type":"text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    if(data.ok){
+      document.getElementById("bannerOk").classList.add("show");
+      btn.style.display = "none";
+    } else {
+      document.getElementById("bannerErrorText").textContent = data.mensaje || "No se pudo guardar el check-in.";
+      document.getElementById("bannerError").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Enviar check-in";
+    }
+  }catch(err){
+    document.getElementById("bannerErrorText").textContent = "No se pudo conectar con el servidor.";
+    document.getElementById("bannerError").classList.add("show");
+    btn.disabled = false;
+    btn.textContent = "Enviar check-in";
+  }
+}
+
+iniciar();
+</script>
+</body>
+</html>
