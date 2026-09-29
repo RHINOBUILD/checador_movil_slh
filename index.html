@@ -3,52 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Checador Facial · Grupo Saint Luke's Hospitals</title>
-  
-  <!-- Face-API.js desde CDN (para producción, se recomienda alojar los modelos localmente) -->
+  <title>Checador Facial · Saint Luke's</title>
+  <!-- Face-API.js desde CDN -->
   <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
   
   <style>
-    :root { --primary: #07345b; --accent: #0b6796; --bg: #f2f6fa; --success: #126544; --error: #b22e35; --text: #163047; }
-    * { box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    body { margin: 0; background: var(--bg); color: var(--text); padding-bottom: 40px; }
+    :root { --primary: #07345b; --accent: #0b6796; --bg: #f2f6fa; --success: #126544; --error: #b22e35; }
+    * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    body { margin: 0; background: var(--bg); color: #163047; padding-bottom: 40px; }
     
     header { background: var(--primary); color: white; padding: 20px; text-align: center; }
-    header h1 { margin: 0; font-size: 20px; font-weight: 700; }
-    header p { margin: 5px 0 0; font-size: 13px; opacity: 0.8; }
+    header h1 { margin: 0; font-size: 20px; }
     
     main { max-width: 600px; margin: 20px auto; padding: 0 16px; }
+    .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     
-    .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(22, 48, 71, 0.08); }
-    .card h2 { margin: 0 0 16px; font-size: 16px; color: var(--primary); border-bottom: 2px solid #e4eef5; padding-bottom: 8px; }
-    
-    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #526b7b; }
-    input[type="text"], select { width: 100%; padding: 12px; border: 1px solid #becfdc; border-radius: 8px; font-size: 16px; margin-bottom: 12px; }
-    
-    .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
-    .btn-primary { background: var(--accent); color: white; }
-    .btn-primary:disabled { background: #a0c4d9; cursor: not-allowed; }
-    .btn-secondary { background: #e4eef5; color: var(--primary); margin-top: 8px; }
-    
-    .employee-info { background: #e4f5ed; border: 1px solid #b7e4c7; border-radius: 8px; padding: 12px; margin-bottom: 16px; display: none; }
-    .employee-info strong { color: var(--success); }
+    input, select { width: 100%; padding: 12px; border: 1px solid #becfdc; border-radius: 8px; font-size: 16px; margin-bottom: 12px; }
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; background: var(--accent); color: white; }
+    .btn:disabled { background: #a0c4d9; }
     
     .camera-container { position: relative; width: 100%; max-width: 400px; margin: 0 auto; background: #000; border-radius: 12px; overflow: hidden; }
-    video { width: 100%; display: block; transform: scaleX(-1); } /* Espejo para mejor UX */
+    video { width: 100%; display: block; transform: scaleX(-1); }
     canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
     
-    .checklist { list-style: none; padding: 0; margin: 16px 0; }
-    .checklist li { padding: 8px 0; font-size: 14px; display: flex; align-items: center; gap: 10px; }
-    .checklist li::before { content: "⏳"; }
-    .checklist li.ok::before { content: "✅"; }
-    .checklist li.fail::before { content: "❌"; }
-    
-    .status-msg { padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600; text-align: center; margin-top: 12px; display: none; }
-    .status-msg.success { background: #d4edda; color: #155724; }
-    .status-msg.error { background: #f8d7da; color: #721c24; }
-    .status-msg.loading { background: #e2e3e5; color: #383d41; }
-    
-    .footer-note { text-align: center; font-size: 11px; color: #526b7b; margin-top: 24px; line-height: 1.4; }
+    .status-msg { padding: 12px; border-radius: 8px; font-size: 14px; text-align: center; margin-top: 12px; display: none; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .loading { background: #e2e3e5; color: #383d41; }
     
     [hidden] { display: none !important; }
   </style>
@@ -57,123 +38,86 @@
 
 <header>
   <h1>GRUPO SAINT LUKE'S HOSPITALS</h1>
-  <p>Checador facial · Registro de asistencia con validación de rostro y ubicación</p>
+  <p>Checador facial · Validación biométrica</p>
 </header>
 
 <main>
   <!-- PASO 1: Identificación -->
   <div class="card" id="step1">
     <h2>Datos del colaborador</h2>
-    <p style="font-size:13px; color:#526b7b; margin-top:-10px;">Ingresa tu número de empleado; tu nombre y foto de referencia se cargarán automáticamente.</p>
-    
-    <label for="numeroEmpleado">Número de empleado</label>
-    <input type="text" id="numeroEmpleado" placeholder="Ej. 4021" inputmode="numeric">
-    
-    <button class="btn btn-primary" id="btnBuscar" onclick="buscarEmpleado()">Buscar datos</button>
+    <input type="text" id="numeroEmpleado" placeholder="Número de empleado" inputmode="numeric">
+    <button class="btn" id="btnBuscar" onclick="buscarEmpleado()">Buscar datos</button>
     <div id="msgBuscar" class="status-msg"></div>
   </div>
 
-  <!-- PASO 2: Información y Movimiento -->
+  <!-- PASO 2: Movimiento -->
   <div class="card" id="step2" hidden>
-    <div class="employee-info" id="employeeInfo" style="display:block;">
-      <strong id="empNombre">Nombre:</strong> <span id="txtNombre"></span><br>
+    <div style="background:#e4f5ed; padding:12px; border-radius:8px; margin-bottom:16px;">
+      <strong>Colaborador:</strong> <span id="txtNombre"></span><br>
       <strong>Sede:</strong> <span id="txtSede"></span>
     </div>
-    
-    <label for="movimiento">Tipo de registro</label>
+    <label>Tipo de registro:</label>
     <select id="movimiento">
       <option value="Entrada">🟢 Entrada</option>
       <option value="Salida">🔴 Salida</option>
     </select>
-    
-    <button class="btn btn-primary" onclick="iniciarCamara()">Activar cámara y validar ubicación</button>
+    <button class="btn" onclick="iniciarCamara()">Activar cámara y validar ubicación</button>
   </div>
 
-  <!-- PASO 3: Cámara y Validación -->
+  <!-- PASO 3: Cámara -->
   <div class="card" id="step3" hidden>
     <h2>Validación facial</h2>
-    <p style="font-size:13px; color:#526b7b; margin-top:-10px;">Centra tu rostro en el marco y mantente inmóvil.</p>
-    
     <div class="camera-container">
       <video id="video" autoplay playsinline muted></video>
       <canvas id="canvasOverlay"></canvas>
     </div>
-    
-    <ul class="checklist" id="checklist">
-      <li id="chkGps">Obteniendo ubicación GPS...</li>
-      <li id="chkFace">Esperando activación de cámara...</li>
-      <li id="chkMatch">Validación de rostro pendiente</li>
+    <ul style="list-style:none; padding:0; font-size:14px; margin:16px 0;">
+      <li id="chkGps">⏳ Obteniendo ubicación GPS...</li>
+      <li id="chkFace">⏳ Esperando activación de cámara...</li>
+      <li id="chkMatch">⏳ Validación de rostro pendiente</li>
     </ul>
-    
-    <button class="btn btn-primary" id="btnCapturar" onclick="capturarYValidar()" disabled>Capturar y validar rostro</button>
-    <button class="btn btn-secondary" onclick="reiniciarProceso()">Cancelar / Reiniciar</button>
-    
+    <button class="btn" id="btnCapturar" onclick="capturarYValidar()" disabled>Capturar y validar</button>
+    <button class="btn" style="background:#e4eef5; color:#07345b; margin-top:8px;" onclick="reiniciarProceso()">Cancelar</button>
     <div id="msgValidacion" class="status-msg"></div>
   </div>
 
-  <!-- PASO 4: Registro Final -->
+  <!-- PASO 4: Confirmación -->
   <div class="card" id="step4" hidden>
     <h2>Confirmar registro</h2>
-    <ul class="checklist">
-      <li class="ok">Rostro capturado y validado</li>
-      <li class="ok" id="chkGpsFinal">Ubicación GPS obtenida</li>
-    </ul>
-    <p style="font-size:13px; text-align:center;">Se registrará tu <strong id="confMovimiento"></strong> a las <strong id="confHora"></strong></p>
-    
-    <button class="btn btn-primary" id="btnRegistrar" onclick="enviarRegistro()">Registrar asistencia</button>
-    <button class="btn btn-secondary" onclick="reiniciarProceso()">Nuevo registro</button>
+    <p>Se registrará tu <strong id="confMovimiento"></strong> a las <strong id="confHora"></strong></p>
+    <button class="btn" id="btnRegistrar" onclick="enviarRegistro()">Registrar asistencia</button>
+    <button class="btn" style="background:#e4eef5; color:#07345b; margin-top:8px;" onclick="reiniciarProceso()">Nuevo registro</button>
     <div id="msgFinal" class="status-msg"></div>
-  </div>
-
-  <div class="footer-note">
-    🔒 Los datos capturados (foto, ubicación y hora) se usan únicamente para control de asistencia.<br>
-    Datos cifrados · Solo uso interno · Saint Luke's Hospitals
   </div>
 </main>
 
 <script>
-  // ==========================================================
-  // ⚙️ CONFIGURACIÓN (DEBES ACTUALIZAR ESTOS VALORES)
-  // ==========================================================
-  const WEB_APP_URL = "https://script.google.com/macros/s/TU_ID_DE_IMPLEMENTACION_AQUI/exec";
-  const API_SECRET = "SLH_CHECADOR_2026_X9Y"; // Debe coincidir con la propiedad del script
-  
-  // URL de los modelos de Face-API (Para producción, descarga la carpeta 'models' y súbela a tu hosting/Drive)
+  // ⚙️ CONFIGURACIÓN
+  const WEB_APP_URL = "https://script.google.com/macros/s/TU_ID_DE_IMPLEMENTACION/exec"; 
+  const API_SECRET = "SLH_CHECADOR_2026_X9Y"; // Debe coincidir con Propiedades del Script
   const MODELS_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
 
-  // ==========================================================
-  // 🧠 ESTADO GLOBAL
-  // ==========================================================
   let empleadoActual = null;
   let streamCamara = null;
   let datosGPS = null;
   let rostroValidado = false;
   let fotoBase64 = "";
-  let faceMatcher = null;
 
-  // ==========================================================
-  // 🚀 INICIALIZACIÓN
-  // ==========================================================
   window.onload = async () => {
-    mostrarMsg('msgBuscar', 'Cargando modelos de inteligencia artificial...', 'loading');
+    mostrarMsg('msgBuscar', 'Cargando modelos de IA...', 'loading');
     try {
       await faceapi.nets.tinyFaceDetector.loadFromUri(MODELS_URL);
       await faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_URL);
       await faceapi.nets.faceRecognitionNet.loadFromUri(MODELS_URL);
-      mostrarMsg('msgBuscar', 'Sistema listo. Ingresa tu número de empleado.', 'success');
+      mostrarMsg('msgBuscar', 'Sistema listo. Ingresa tu número.', 'success');
     } catch (err) {
-      console.error(err);
-      mostrarMsg('msgBuscar', 'Error cargando modelos. Verifica tu conexión.', 'error');
+      mostrarMsg('msgBuscar', 'Error cargando modelos. Revisa tu conexión.', 'error');
     }
   };
 
-  // ==========================================================
-  // 🔍 PASO 1: BUSCAR EMPLEADO
-  // ==========================================================
   async function buscarEmpleado() {
     const num = document.getElementById('numeroEmpleado').value.trim();
-    if (!num) return mostrarMsg('msgBuscar', 'Ingresa un número de empleado.', 'error');
-
+    if (!num) return mostrarMsg('msgBuscar', 'Ingresa un número.', 'error');
     mostrarMsg('msgBuscar', 'Buscando...', 'loading');
     document.getElementById('btnBuscar').disabled = true;
 
@@ -181,182 +125,117 @@
       const url = `${WEB_APP_URL}?action=empleado&numero=${encodeURIComponent(num)}&key=${API_SECRET}`;
       const res = await fetch(url);
       const data = await res.json();
-
       if (data.encontrado) {
         empleadoActual = data;
         document.getElementById('txtNombre').textContent = data.nombre;
         document.getElementById('txtSede').textContent = data.sede;
-        
         document.getElementById('step1').hidden = true;
         document.getElementById('step2').hidden = false;
-        obtenerGPS(); // Iniciar GPS en segundo plano
+        obtenerGPS();
       } else {
-        mostrarMsg('msgBuscar', 'Empleado no encontrado. Verifica el número.', 'error');
+        mostrarMsg('msgBuscar', 'Empleado no encontrado.', 'error');
       }
     } catch (err) {
-      mostrarMsg('msgBuscar', 'Error de conexión con el servidor.', 'error');
+      mostrarMsg('msgBuscar', 'Error de conexión.', 'error');
     } finally {
       document.getElementById('btnBuscar').disabled = false;
     }
   }
 
-  // ==========================================================
-  // 📍 GEOLOCALIZACIÓN
-  // ==========================================================
   function obtenerGPS() {
-    const chkGps = document.getElementById('chkGps');
-    chkGps.className = '';
-    
-    if (!navigator.geolocation) {
-      chkGps.textContent = "❌ GPS no soportado por el navegador";
-      chkGps.className = "fail";
-      return;
-    }
-
+    if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        datosGPS = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          precision: pos.coords.accuracy
-        };
-        chkGps.textContent = "✅ Ubicación GPS obtenida";
-        chkGps.className = "ok";
+        datosGPS = { lat: pos.coords.latitude, lng: pos.coords.longitude, precision: pos.coords.accuracy };
+        document.getElementById('chkGps').textContent = "✅ Ubicación GPS obtenida";
+        document.getElementById('chkGps').style.color = "var(--success)";
       },
-      (err) => {
-        console.warn("Error GPS:", err);
-        chkGps.textContent = "⚠️ No se pudo obtener GPS. Se registrará sin ubicación.";
-        chkGps.className = "fail";
+      () => {
+        document.getElementById('chkGps').textContent = "⚠️ GPS no disponible";
         datosGPS = { lat: 0, lng: 0, precision: 9999 };
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   }
 
-  // ==========================================================
-  // 📷 PASO 3: CÁMARA Y VALIDACIÓN FACIAL
-  // ==========================================================
   async function iniciarCamara() {
     document.getElementById('step2').hidden = true;
     document.getElementById('step3').hidden = false;
-    
     const video = document.getElementById('video');
-    const chkFace = document.getElementById('chkFace');
-    chkFace.textContent = "Solicitando permiso de cámara...";
-
     try {
-      streamCamara = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } 
-      });
+      streamCamara = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
       video.srcObject = streamCamara;
-      
       video.onloadedmetadata = () => {
-        chkFace.textContent = "✅ Cámara activa. Centra tu rostro.";
-        chkFace.className = "ok";
+        document.getElementById('chkFace').textContent = "✅ Cámara activa";
+        document.getElementById('chkFace').style.color = "var(--success)";
         document.getElementById('btnCapturar').disabled = false;
       };
     } catch (err) {
-      chkFace.textContent = "❌ Permiso de cámara denegado o no disponible.";
-      chkFace.className = "fail";
-      mostrarMsg('msgValidacion', 'No se puede acceder a la cámara.', 'error');
+      document.getElementById('chkFace').textContent = "❌ Permiso de cámara denegado";
     }
   }
 
   async function capturarYValidar() {
     const btn = document.getElementById('btnCapturar');
-    btn.disabled = true;
-    btn.textContent = "Procesando rostro...";
+    btn.disabled = true; btn.textContent = "Procesando...";
     mostrarMsg('msgValidacion', 'Analizando biometría...', 'loading');
 
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvasOverlay');
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     
-    // Ajustar canvas al tamaño del video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
-    // 1. Detectar rostro en el video
     const deteccion = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
       .withFaceLandmarks().withFaceDescriptor();
 
     if (!deteccion) {
-      mostrarMsg('msgValidacion', 'No se detectó ningún rostro. Intenta de nuevo con mejor luz.', 'error');
-      btn.disabled = false;
-      btn.textContent = "Capturar y validar rostro";
+      mostrarMsg('msgValidacion', 'No se detectó rostro. Intenta con mejor luz.', 'error');
+      btn.disabled = false; btn.textContent = "Capturar y validar";
       return;
     }
 
-    // 2. Dibujar cuadro de detección (feedback visual)
-    const displaySize = { width: canvas.width, height: canvas.height };
-    faceapi.matchDimensions(canvas, displaySize);
-    const resizedDetections = faceapi.resizeResults(deteccion, displaySize);
-    faceapi.draw.drawDetections(canvas, resizedDetections);
-
-    // 3. Validar contra la foto de referencia (si existe)
+    // Validación contra referencia
     rostroValidado = false;
     if (empleadoActual.fotoUrl && empleadoActual.fotoUrl.startsWith('data:image')) {
       try {
         const imgRef = await faceapi.fetchImage(empleadoActual.fotoUrl);
         const deteccionRef = await faceapi.detectSingleFace(imgRef, new faceapi.TinyFaceDetectorOptions()).withFaceDescriptor();
-        
         if (deteccionRef) {
           const matcher = new faceapi.FaceMatcher([new faceapi.LabeledFaceDescriptors(empleadoActual.numero, [deteccionRef.descriptor])], 0.6);
-          const mejorMatch = matcher.findBestMatch(deteccion.descriptor);
-          
-          if (mejorMatch.label === empleadoActual.numero && mejorMatch.distance < 0.6) {
+          const match = matcher.findBestMatch(deteccion.descriptor);
+          if (match.label === empleadoActual.numero && match.distance < 0.6) {
             rostroValidado = true;
-            document.getElementById('chkMatch').textContent = `✅ Rostro coincide con referencia (Confianza: ${Math.round((1 - mejorMatch.distance) * 100)}%)`;
-            document.getElementById('chkMatch').className = "ok";
+            document.getElementById('chkMatch').textContent = `✅ Rostro coincide (${Math.round((1 - match.distance) * 100)}%)`;
+            document.getElementById('chkMatch').style.color = "var(--success)";
           } else {
-            document.getElementById('chkMatch').textContent = `❌ Rostro no coincide. Distancia: ${mejorMatch.distance.toFixed(2)}`;
-            document.getElementById('chkMatch').className = "fail";
+            document.getElementById('chkMatch').textContent = `❌ Rostro no coincide`;
           }
         }
-      } catch (err) {
-        console.warn("Error validando rostro de referencia:", err);
-        document.getElementById('chkMatch').textContent = "⚠️ No se pudo validar contra referencia (se permitirá con supervisión)";
-        document.getElementById('chkMatch').className = "fail";
-        rostroValidado = true; // Fallback permisivo si la foto de referencia falla, pero se marca para revisión de RH
-      }
+      } catch (e) { console.warn(e); }
     } else {
-      document.getElementById('chkMatch').textContent = "⚠️ Sin foto de referencia. Se registrará para validación manual de RH.";
-      document.getElementById('chkMatch').className = "fail";
-      rostroValidado = true; // Permitir registro pero sin validación biométrica
+      document.getElementById('chkMatch').textContent = "⚠️ Sin foto de referencia";
+      rostroValidado = true; // Permitir registro manual si no hay foto
     }
 
-    // 4. Capturar foto base64
+    // Captura final
     const ctx = canvas.getContext('2d');
-    // Invertir el contexto porque el video está en espejo
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
+    ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    fotoBase64 = canvas.toDataURL('image/jpeg', 0.7); // Compresión 70% para no saturar el payload
+    fotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
 
-    // 5. Pasar al paso final
     setTimeout(() => {
       document.getElementById('step3').hidden = true;
       document.getElementById('step4').hidden = false;
       document.getElementById('confMovimiento').textContent = document.getElementById('movimiento').value;
-      document.getElementById('confHora').textContent = new Date().toLocaleTimeString('es-MX');
-      
-      if (datosGPS) {
-        document.getElementById('chkGpsFinal').textContent = `✅ GPS: Precisión ${Math.round(datosGPS.precision)}m`;
-      }
+      document.getElementById('confHora').textContent = new Date().toLocaleTimeString();
     }, 1000);
   }
 
-  // ==========================================================
-  // 📤 PASO 4: ENVIAR REGISTRO AL BACKEND
-  // ==========================================================
   async function enviarRegistro() {
     const btn = document.getElementById('btnRegistrar');
-    btn.disabled = true;
-    btn.textContent = "Enviando datos cifrados...";
-    mostrarMsg('msgFinal', 'Conectando con el servidor...', 'loading');
-
+    btn.disabled = true; btn.textContent = "Enviando...";
+    
     const payload = {
-      tipo: "registro", // Identificador para el doPost del backend
+      tipo: "registro",
       api_key: API_SECRET,
       numeroEmpleado: empleadoActual.numero,
       nombre: empleadoActual.nombre,
@@ -365,75 +244,40 @@
       lat: datosGPS ? datosGPS.lat : 0,
       lng: datosGPS ? datosGPS.lng : 0,
       precision: datosGPS ? datosGPS.precision : 9999,
-      dentroDeRadio: true, // El backend puede recalcular esto si se configura
+      dentroDeRadio: true,
       rostroValidado: rostroValidado,
       horaDispositivo: new Date().toISOString(),
       fotoBase64: fotoBase64
     };
 
     try {
-      // NOTA: Apps Script requiere 'no-cors' para POST desde dominios externos.
-      // Esto significa que no podemos leer la respuesta JSON directamente, 
-      // pero si no lanza excepción de red, asumimos que se procesó correctamente.
       await fetch(WEB_APP_URL, {
-        method: 'POST',
-        mode: 'no-cors',
+        method: 'POST', mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
       });
-
-      mostrarMsg('msgFinal', '✅ Registro guardado exitosamente. ¡Que tengas un excelente día!', 'success');
-      btn.textContent = "Registrado";
-      
-      // Detener cámara para ahorrar batería
-      if (streamCamara) {
-        streamCamara.getTracks().forEach(track => track.stop());
-      }
-      
+      mostrarMsg('msgFinal', '✅ Registro guardado exitosamente.', 'success');
+      if (streamCamara) streamCamara.getTracks().forEach(t => t.stop());
     } catch (err) {
-      console.error(err);
-      mostrarMsg('msgFinal', '❌ Error de red. Verifica tu conexión e intenta de nuevo.', 'error');
-      btn.disabled = false;
-      btn.textContent = "Reintentar registro";
+      mostrarMsg('msgFinal', '❌ Error de red.', 'error');
+      btn.disabled = false; btn.textContent = "Reintentar";
     }
   }
 
-  // ==========================================================
-  // 🔄 UTILIDADES
-  // ==========================================================
   function reiniciarProceso() {
-    if (streamCamara) {
-      streamCamara.getTracks().forEach(track => track.stop());
-    }
+    if (streamCamara) streamCamara.getTracks().forEach(t => t.stop());
     document.getElementById('numeroEmpleado').value = '';
     document.getElementById('step1').hidden = false;
     document.getElementById('step2').hidden = true;
     document.getElementById('step3').hidden = true;
     document.getElementById('step4').hidden = true;
-    document.getElementById('msgValidacion').style.display = 'none';
-    document.getElementById('msgFinal').style.display = 'none';
-    
-    // Reset checklist
-    document.getElementById('chkGps').textContent = "Obteniendo ubicación GPS...";
-    document.getElementById('chkGps').className = "";
-    document.getElementById('chkFace').textContent = "Esperando activación de cámara...";
-    document.getElementById('chkFace').className = "";
-    document.getElementById('chkMatch').textContent = "Validación de rostro pendiente";
-    document.getElementById('chkMatch').className = "";
-    
-    empleadoActual = null;
-    datosGPS = null;
-    rostroValidado = false;
-    fotoBase64 = "";
+    empleadoActual = null; datosGPS = null; rostroValidado = false;
   }
 
-  function mostrarMsg(elementId, texto, tipo) {
-    const el = document.getElementById(elementId);
-    el.textContent = texto;
-    el.className = `status-msg ${tipo}`;
-    el.style.display = 'block';
+  function mostrarMsg(id, txt, tipo) {
+    const el = document.getElementById(id);
+    el.textContent = txt; el.className = `status-msg ${tipo}`; el.style.display = 'block';
   }
 </script>
-
 </body>
 </html>
