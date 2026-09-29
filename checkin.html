@@ -46,115 +46,112 @@
     </div>
 
     <script>
-        // ⚠️ IMPORTANTE: Pega aquí la URL de tu Web App de Apps Script
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzYWmvw3c0QMafg4WHzYzPNTIgKiZyuJcO9LeQzeCgwljKYvYlYNDAXknYFCTV_-NBC9A/exec"; 
-        const API_SECRET = "SLH_2026_X9Y"; // Misma clave que en el checador
-        
-        let userData = null;
-        let gpsCoords = null;
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzYWmvw3c0QMafg4WHzYzPNTIgKiZyuJcO9LeQzeCgwljKYvYlYNDAXknYFCTV_-NBC9A/exec";
+  const API_SECRET = "SLH_2026_X9Y";
+  
+  let userData = null;
+  let gpsCoords = null;
 
-        async function init() {
-            const params = new URLSearchParams(window.location.search);
-            const numero = params.get('numero');
-            if (!numero) return showError("Enlace inválido. Falta número de empleado.");
+  async function init() {
+    const params = new URLSearchParams(window.location.search);
+    const numero = params.get('numero');
+    if (!numero) return showError("Enlace inválido. Falta número de empleado.");
 
-            try {
-                // 1. Obtener datos del empleado y catálogo
-                const res = await fetch(`${WEB_APP_URL}?action=datosCheckIn&numero=${numero}&key=${API_SECRET}`);
-                userData = await res.json();
-                if (!userData.encontrado || !userData.activo) return showError("Empleado no encontrado o inactivo.");
+    try {
+      const res = await fetch(`${WEB_APP_URL}?action=datosCheckIn&numero=${numero}&key=${API_SECRET}`);
+      userData = await res.json();
+      if (!userData.encontrado || !userData.activo) return showError("Empleado no encontrado o inactivo.");
 
-                document.getElementById('userName').textContent = userData.nombre;
-                document.getElementById('userRol').textContent = userData.rol;
+      document.getElementById('userName').textContent = userData.nombre;
+      document.getElementById('userRol').textContent = userData.rol;
 
-                // 2. Configurar UI según rol
-                if (userData.rol === 'Ambulancia') {
-                    document.getElementById('ambulanciaFields').style.display = 'block';
-                    const select = document.getElementById('estado');
-                    userData.opciones.forEach(opt => {
-                        const o = document.createElement('option');
-                        o.value = opt; o.textContent = opt;
-                        select.appendChild(o);
-                    });
-                    enableSubmit();
-                } else if (userData.rol === 'Comercial') {
-                    document.getElementById('comercialFields').style.display = 'block';
-                    const select = document.getElementById('actividad');
-                    userData.opciones.forEach(opt => {
-                        const o = document.createElement('option');
-                        o.value = opt; o.textContent = opt;
-                        select.appendChild(o);
-                    });
-                    getGPS();
-                }
-                document.getElementById('form').style.display = 'block';
-                document.getElementById('status').style.display = 'none';
-
-            } catch (err) { showError("Error de red: " + err.message); }
-        }
-
-        function getGPS() {
-            if (!navigator.geolocation) {
-                document.getElementById('gpsStatus').textContent = "⚠️ Tu dispositivo no soporta GPS.";
-                enableSubmit(); return;
-            }
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    gpsCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude, precision: pos.coords.accuracy };
-                    document.getElementById('gpsStatus').textContent = "✅ Ubicación obtenida con éxito.";
-                    enableSubmit();
-                },
-                (err) => {
-                    document.getElementById('gpsStatus').textContent = "⚠️ No se pudo obtener GPS. Registra manualmente.";
-                    gpsCoords = { lat: 0, lng: 0, precision: 0 };
-                    enableSubmit();
-                },
-                { enableHighAccuracy: true, timeout: 10000 }
-            );
-        }
-
-        function enableSubmit() { document.getElementById('btnSubmit').disabled = false; }
-        function showError(msg) {
-            const s = document.getElementById('status');
-            s.className = 'status error'; s.textContent = msg;
-        }
-
-        document.getElementById('btnSubmit').addEventListener('click', async () => {
-            const btn = document.getElementById('btnSubmit');
-            btn.disabled = true; btn.textContent = "Enviando...";
-
-            const payload = {
-                tipo: "checkin",
-                api_key: API_SECRET,
-                numeroEmpleado: userData.numero,
-                nombre: userData.nombre,
-                rol: userData.rol,
-                lat: gpsCoords ? gpsCoords.lat : 0,
-                lng: gpsCoords ? gpsCoords.lng : 0,
-                dentroDeZona: true,
-                estado: document.getElementById('estado') ? document.getElementById('estado').value : "",
-                actividad: document.getElementById('actividad') ? document.getElementById('actividad').value : "",
-                comentario: document.getElementById('comentario').value
-            };
-
-            try {
-                await fetch(WEB_APP_URL, {
-                    method: 'POST', mode: 'no-cors',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(payload)
-                });
-                
-                const s = document.getElementById('status');
-                s.style.display = 'block'; s.className = 'status success';
-                s.textContent = "✅ Check-in registrado correctamente. Puedes cerrar esta ventana.";
-                document.getElementById('form').style.display = 'none';
-            } catch (err) {
-                btn.disabled = false; btn.textContent = "Reintentar";
-                showError("Error al enviar: " + err.message);
-            }
+      if (userData.rol === 'Ambulancia') {
+        document.getElementById('ambulanciaFields').style.display = 'block';
+        const select = document.getElementById('estado');
+        userData.opciones.forEach(opt => {
+          const o = document.createElement('option');
+          o.value = opt; o.textContent = opt;
+          select.appendChild(o);
         });
+        enableSubmit();
+      } else if (userData.rol === 'Comercial') {
+        document.getElementById('comercialFields').style.display = 'block';
+        const select = document.getElementById('actividad');
+        userData.opciones.forEach(opt => {
+          const o = document.createElement('option');
+          o.value = opt; o.textContent = opt;
+          select.appendChild(o);
+        });
+        getGPS();
+      }
+      document.getElementById('form').style.display = 'block';
+      document.getElementById('status').style.display = 'none';
 
-        init();
-    </script>
+    } catch (err) { showError("Error de red: " + err.message); }
+  }
+
+  function getGPS() {
+    if (!navigator.geolocation) {
+      document.getElementById('gpsStatus').textContent = "⚠️ Tu dispositivo no soporta GPS.";
+      enableSubmit(); return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        gpsCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude, precision: pos.coords.accuracy };
+        document.getElementById('gpsStatus').textContent = "✅ Ubicación obtenida con éxito.";
+        enableSubmit();
+      },
+      (err) => {
+        document.getElementById('gpsStatus').textContent = "⚠️ No se pudo obtener GPS.";
+        gpsCoords = { lat: 0, lng: 0, precision: 0 };
+        enableSubmit();
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  function enableSubmit() { document.getElementById('btnSubmit').disabled = false; }
+  function showError(msg) {
+    const s = document.getElementById('status');
+    s.className = 'status error'; s.textContent = msg;
+  }
+
+  document.getElementById('btnSubmit').addEventListener('click', async () => {
+    const btn = document.getElementById('btnSubmit');
+    btn.disabled = true; btn.textContent = "Enviando...";
+
+    const payload = {
+      tipo: "checkin",
+      api_key: API_SECRET,
+      numeroEmpleado: userData.numero,
+      nombre: userData.nombre,
+      rol: userData.rol,
+      lat: gpsCoords ? gpsCoords.lat : 0,
+      lng: gpsCoords ? gpsCoords.lng : 0,
+      dentroDeZona: true,
+      estado: document.getElementById('estado') ? document.getElementById('estado').value : "",
+      actividad: document.getElementById('actividad') ? document.getElementById('actividad').value : "",
+      comentario: document.getElementById('comentario').value
+    };
+
+    try {
+      await fetch(WEB_APP_URL, {
+        method: 'POST', mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      
+      const s = document.getElementById('status');
+      s.style.display = 'block'; s.className = 'status success';
+      s.textContent = "✅ Check-in registrado correctamente.";
+      document.getElementById('form').style.display = 'none';
+    } catch (err) {
+      btn.disabled = false; btn.textContent = "Reintentar";
+      showError("Error al enviar: " + err.message);
+    }
+  });
+
+  init();
+</script>
 </body>
 </html>
