@@ -48,6 +48,7 @@
     <script>
         // ⚠️ IMPORTANTE: Pega aquí la URL de tu Web App de Apps Script
         const WEB_APP_URL = "https://script.google.com/macros/s/TU_ID_DE_IMPLEMENTACION/exec"; 
+        const API_SECRET = "SLH_CHECADOR_2026_X9Y"; // Misma clave que en el checador
         
         let userData = null;
         let gpsCoords = null;
@@ -59,7 +60,7 @@
 
             try {
                 // 1. Obtener datos del empleado y catálogo
-                const res = await fetch(`${WEB_APP_URL}?action=datosCheckIn&numero=${numero}`);
+                const res = await fetch(`${WEB_APP_URL}?action=datosCheckIn&numero=${numero}&key=${API_SECRET}`);
                 userData = await res.json();
                 if (!userData.encontrado || !userData.activo) return showError("Empleado no encontrado o inactivo.");
 
@@ -75,7 +76,7 @@
                         o.value = opt; o.textContent = opt;
                         select.appendChild(o);
                     });
-                    enableSubmit(); // Ambulancia no requiere GPS estricto para habilitar botón
+                    enableSubmit();
                 } else if (userData.rol === 'Comercial') {
                     document.getElementById('comercialFields').style.display = 'block';
                     const select = document.getElementById('actividad');
@@ -84,7 +85,7 @@
                         o.value = opt; o.textContent = opt;
                         select.appendChild(o);
                     });
-                    getGPS(); // Comercial requiere validar zona
+                    getGPS();
                 }
                 document.getElementById('form').style.display = 'block';
                 document.getElementById('status').style.display = 'none';
@@ -124,19 +125,19 @@
 
             const payload = {
                 tipo: "checkin",
+                api_key: API_SECRET,
                 numeroEmpleado: userData.numero,
                 nombre: userData.nombre,
                 rol: userData.rol,
                 lat: gpsCoords ? gpsCoords.lat : 0,
                 lng: gpsCoords ? gpsCoords.lng : 0,
-                dentroDeZona: true, // El backend puede recalcular esto con latRef/lngRef
+                dentroDeZona: true,
                 estado: document.getElementById('estado') ? document.getElementById('estado').value : "",
                 actividad: document.getElementById('actividad') ? document.getElementById('actividad').value : "",
                 comentario: document.getElementById('comentario').value
             };
 
             try {
-                // mode: 'no-cors' es OBLIGATORIO para POST a Apps Script desde dominios externos
                 await fetch(WEB_APP_URL, {
                     method: 'POST', mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
