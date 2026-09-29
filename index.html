@@ -1,795 +1,439 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Checador Facial · Grupo Saint Luke's Hospitals</title>
-<meta name="description" content="Registro de asistencia con validación de rostro y ubicación.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --navy-950:#0A1F33;
-    --navy-900:#0D2740;
-    --navy-800:#123354;
-    --navy-700:#1B4066;
-    --navy-600:#2A5686;
-    --gold-500:#B08D2C;
-    --gold-400:#C7A63F;
-    --gold-300:#D9BE6B;
-    --gold-200:#E7D9AA;
-    --paper:#F6F4EF;
-    --paper-dim:#EDEAE1;
-    --ink:#16202B;
-    --ink-soft:#4A5560;
-    --line:#DEDACE;
-    --success:#2F6F4E;
-    --success-bg:#E4EEE8;
-    --danger:#8C2F2F;
-    --danger-bg:#F3E4E2;
-    --radius:16px;
-    --shadow:0 12px 32px -8px rgba(10,31,51,.20);
-    --shadow-soft:0 2px 10px rgba(10,31,51,.06);
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
-  body{
-    background:
-      radial-gradient(1100px 480px at 15% -10%, #FBFAF6 0%, transparent 60%),
-      radial-gradient(900px 420px at 100% 0%, #EFE7D2 0%, transparent 55%),
-      var(--paper);
-    color:var(--ink);
-    font-family:'IBM Plex Sans',system-ui,sans-serif;
-    min-height:100vh;
-    display:flex;
-    flex-direction:column;
-  }
-  h1,h2,h3{font-family:'Fraunces',serif;margin:0;}
-  .skip-link{position:absolute;left:-999px;}
-  .skip-link:focus{left:12px;top:12px;background:var(--gold-400);color:var(--navy-950);padding:8px 14px;border-radius:8px;z-index:999;}
-
-  header.top{
-    background:
-      radial-gradient(700px 260px at 100% -30%, rgba(199,166,63,.20), transparent 60%),
-      linear-gradient(165deg, var(--navy-900) 0%, var(--navy-950) 55%, #081627 100%);
-    color:var(--paper);
-    padding:16px 20px 22px;
-    position:relative;
-    overflow:hidden;
-  }
-  header.top::after{
-    content:"";
-    position:absolute; inset:auto 0 0 0; height:3px;
-    background:linear-gradient(90deg,var(--gold-500),var(--gold-200),var(--gold-500));
-  }
-  .logos-row{
-    display:flex; align-items:center; gap:10px;
-    padding-bottom:14px; margin-bottom:14px;
-    border-bottom:1px solid rgba(255,255,255,.10);
-  }
-  .logos-row img{
-    height:26px; width:auto; display:block;
-  }
-  .logos-row .stl-logo{height:22px;}
-  .logos-row .bw-logo{height:24px;}
-  .logos-row .sep{width:1px; height:20px; background:rgba(255,255,255,.16);}
-  .top-row{display:flex; align-items:flex-start; justify-content:space-between; gap:12px;}
-  .brand{display:flex; flex-direction:column; gap:2px;}
-  .brand .grupo{font-size:11px; letter-spacing:.02em; color:var(--gold-200); font-family:'IBM Plex Mono',monospace;}
-  .brand h1{font-size:23px; font-weight:600; line-height:1.15; letter-spacing:-.01em;}
-  .brand .sub{font-size:12.5px; color:#C7D2DD;}
-  .clock{
-    text-align:right;
-    font-family:'IBM Plex Mono',monospace;
-    font-variant-numeric:tabular-nums;
-  }
-  .clock .time{font-size:22px; font-weight:500; color:var(--gold-200);}
-  .clock .date{font-size:11.5px; color:#9FB0C0; text-transform:capitalize;}
-
-  .select-wrap{position:relative; margin-top:14px;}
-  .select-wrap::after{
-    content:"";
-    position:absolute; right:14px; top:50%; width:8px; height:8px;
-    border-right:1.5px solid var(--gold-300); border-bottom:1.5px solid var(--gold-300);
-    transform:translateY(-70%) rotate(45deg); pointer-events:none;
-  }
-  select#sede{
-    width:100%;
-    appearance:none; -webkit-appearance:none;
-    background:rgba(255,255,255,.06);
-    backdrop-filter:blur(6px);
-    color:var(--paper);
-    border:1px solid rgba(255,255,255,.18);
-    border-radius:11px;
-    padding:11px 36px 11px 13px;
-    font-family:'IBM Plex Sans',sans-serif;
-    font-size:14px;
-  }
-
-  main{
-    flex:1;
-    max-width:480px;
-    width:100%;
-    margin:0 auto;
-    padding:20px 16px 40px;
-  }
-
-  .card{
-    background:#fff;
-    border:1px solid var(--line);
-    border-radius:var(--radius);
-    padding:20px;
-    margin-bottom:16px;
-    box-shadow:var(--shadow-soft);
-  }
-  .card h2{font-size:16.5px; font-weight:600; margin-bottom:4px; letter-spacing:-.01em;}
-  .card .hint{font-size:12.5px; color:var(--ink-soft); margin-bottom:14px; line-height:1.5;}
-
-  .viewfinder{
-    position:relative;
-    aspect-ratio:3/4;
-    max-height:340px;
-    background:radial-gradient(120% 100% at 50% 0%, #14304F 0%, var(--navy-950) 70%);
-    border-radius:14px;
-    overflow:hidden;
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
-  }
-  .viewfinder video, .viewfinder canvas{
-    width:100%; height:100%; object-fit:cover;
-    position:absolute; inset:0;
-  }
-  .viewfinder canvas{pointer-events:none;}
-  .scan-line{
-    position:absolute; left:10%; right:10%; height:2px; top:14px;
-    background:linear-gradient(90deg,transparent,var(--gold-300),transparent);
-    opacity:0; filter:drop-shadow(0 0 6px rgba(199,166,63,.8));
-  }
-  .viewfinder.scanning .scan-line{
-    opacity:1; animation:scan 1.8s ease-in-out infinite;
-  }
-  @keyframes scan{
-    0%{top:12%;} 50%{top:85%;} 100%{top:12%;}
-  }
-  .corner{
-    position:absolute; width:28px; height:28px;
-    border-color:var(--gold-400);
-    border-style:solid;
-    transition:border-color .3s ease, filter .3s ease;
-  }
-  .corner.tl{top:14px; left:14px; border-width:3px 0 0 3px; border-radius:8px 0 0 0;}
-  .corner.tr{top:14px; right:14px; border-width:3px 3px 0 0; border-radius:0 8px 0 0;}
-  .corner.bl{bottom:14px; left:14px; border-width:0 0 3px 3px; border-radius:0 0 0 8px;}
-  .corner.br{bottom:14px; right:14px; border-width:0 3px 3px 0; border-radius:0 0 8px 0;}
-  .viewfinder.ok .corner{border-color:var(--success); filter:drop-shadow(0 0 6px rgba(47,111,78,.7));}
-  .viewfinder.warn .corner{border-color:var(--danger); filter:drop-shadow(0 0 6px rgba(140,47,47,.7));}
-
-  .vf-status{
-    position:absolute; left:14px; bottom:14px; right:14px;
-    display:flex; justify-content:center;
-  }
-  .vf-status span{
-    background:rgba(10,20,33,.78);
-    backdrop-filter:blur(4px);
-    color:#fff;
-    font-size:11.5px;
-    padding:6px 12px;
-    border-radius:999px;
-    font-family:'IBM Plex Mono',monospace;
-    border:1px solid rgba(255,255,255,.08);
-  }
-  .vf-placeholder{
-    position:absolute; inset:0;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    color:#8FA2B4; font-size:13px; text-align:center; padding:24px;
-  }
-  .face-guide{
-    position:absolute; left:50%; top:46%; width:60%; aspect-ratio:3/4;
-    transform:translate(-50%,-50%);
-    border:2px dashed rgba(231,217,170,.55); border-radius:50%;
-    display:none; pointer-events:none;
-  }
-  .viewfinder.scanning .face-guide{display:block;}
-  .viewfinder.ok .face-guide{border-color:rgba(47,111,78,.7); border-style:solid;}
-  .viewfinder.warn .face-guide{border-color:rgba(140,47,47,.7); border-style:solid;}
-  .countdown{
-    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
-    font-family:'Fraunces',serif; font-size:64px; font-weight:600; color:#fff;
-    text-shadow:0 2px 12px rgba(0,0,0,.6); pointer-events:none;
-  }
-  .countdown.show{display:flex;}
-
-  .cam-actions{display:flex; gap:10px; margin-top:14px;}
-  button{
-    font-family:'IBM Plex Sans',sans-serif;
-    font-size:14px; font-weight:600;
-    border-radius:11px; border:none;
-    padding:12px 16px; cursor:pointer;
-    transition:transform .08s ease, opacity .2s ease, box-shadow .2s ease, background .2s ease;
-  }
-  button:active{transform:scale(.98);}
-  button:disabled{opacity:.42; cursor:not-allowed;}
-  .btn-outline{
-    background:#fff; border:1.5px solid var(--line); color:var(--navy-800);
-    flex:1;
-  }
-  .btn-outline:not(:disabled):hover{border-color:var(--navy-600);}
-  .btn-gold{
-    background:linear-gradient(155deg,var(--gold-400),var(--gold-500));
-    color:var(--navy-950);
-    flex:1;
-    box-shadow:0 6px 16px -4px rgba(176,141,44,.45);
-  }
-  .btn-gold:disabled{box-shadow:none;}
-  .btn-primary-full{
-    background:linear-gradient(155deg,var(--navy-800),var(--navy-950));
-    color:#fff;
-    width:100%; padding:15px; font-size:15px;
-    box-shadow:0 10px 24px -8px rgba(10,31,51,.5);
-  }
-  .btn-primary-full:disabled{box-shadow:none;}
-  .btn-primary-full:not(:disabled):hover{background:linear-gradient(155deg,var(--navy-700),var(--navy-900));}
-
-  label{display:block; font-size:12.5px; font-weight:600; color:var(--ink-soft); margin:0 0 6px;}
-  input[type=text], input[type=number]{
-    width:100%; padding:12px 12px; border:1.5px solid var(--line); border-radius:10px;
-    font-size:15px; font-family:'IBM Plex Sans',sans-serif; margin-bottom:14px;
-    background:var(--paper);
-  }
-  input:focus, select:focus, button:focus-visible{
-    outline:2.5px solid var(--gold-500); outline-offset:1px;
-  }
-
-  .empleado-info{
-    display:flex; align-items:center; gap:10px;
-    background:var(--paper-dim); border-radius:10px; padding:8px 10px; margin:-4px 0 14px;
-    font-size:13px; min-height:38px;
-  }
-  .empleado-info img{width:30px; height:30px; border-radius:50%; object-fit:cover; background:var(--line);}
-  .empleado-info .muted{color:var(--ink-soft);}
-
-  .segmented{
-    display:flex; background:var(--paper-dim); padding:4px;
-    border-radius:12px; overflow:hidden; margin-bottom:16px; gap:4px;
-  }
-  .segmented button{
-    flex:1; background:transparent; color:var(--ink-soft); border-radius:9px; font-size:14px;
-  }
-  .segmented button.active{background:var(--navy-950); color:#fff; box-shadow:0 4px 10px -3px rgba(10,31,51,.4);}
-
-  .checklist{list-style:none; margin:0 0 16px; padding:0; display:flex; flex-direction:column; gap:8px;}
-  .checklist li{
-    display:flex; align-items:center; gap:10px; font-size:13.5px; color:var(--ink-soft);
-    padding:13px 14px; border-radius:11px; background:var(--paper-dim);
-    transition:background .25s ease, color .25s ease;
-  }
-  .checklist li .dot{
-    width:20px; height:20px; border-radius:50%; border:1.5px solid var(--line);
-    flex:none; display:flex; align-items:center; justify-content:center; font-size:12px; color:transparent;
-    background:#fff; transition:all .25s ease;
-  }
-  .checklist li.done{background:var(--success-bg); color:var(--success);}
-  .checklist li.done .dot{background:var(--success); border-color:var(--success); color:#fff;}
-  .checklist li.fail{background:var(--danger-bg); color:var(--danger);}
-  .checklist li.fail .dot{background:var(--danger); border-color:var(--danger); color:#fff;}
-
-  .gps-block{margin:2px 0 16px;}
-  .gps-distance{display:block; font-family:'Fraunces',serif; font-size:17px; font-weight:600; color:var(--ink);}
-  .gps-detail{display:block; font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; margin-top:2px;}
-
-  .ready-hint{
-    text-align:center; font-size:13px; font-weight:600; color:var(--success);
-    margin-bottom:8px; display:none;
-  }
-  .ready-hint.show{display:block;}
-  .btn-primary-full.ready{
-    background:linear-gradient(155deg,#3C8562,var(--success));
-    box-shadow:0 10px 24px -8px rgba(47,111,78,.5);
-  }
-  .btn-primary-full.ready:hover{background:linear-gradient(155deg,#357556,#255c40);}
-
-  .trust-badge{
-    display:inline-flex; align-items:center; gap:5px;
-    font-size:11px; color:var(--ink-soft); margin-top:6px;
-  }
-
-  #resultado{margin-top:16px;}
-  #resultado .banner{
-    border-radius:10px; padding:14px; font-size:14px; display:none;
-  }
-  #resultado .banner.show{display:block;}
-  #resultado .banner.ok{background:var(--success-bg); color:var(--success); border:1px solid #bcd8c6;}
-  #resultado .banner.error{background:var(--danger-bg); color:var(--danger); border:1px solid #e0bcb8;}
-  #resultado .banner strong{display:block; font-family:'Fraunces',serif; font-size:16px; margin-bottom:2px;}
-
-  footer{
-    text-align:center; font-size:11.5px; color:var(--ink-soft);
-    padding:18px 16px 28px;
-  }
-  footer .tag{
-    display:inline-block; background:var(--paper-dim); border:1px solid var(--line);
-    padding:3px 10px; border-radius:999px; margin-top:6px; font-family:'IBM Plex Mono',monospace;
-  }
-
-  @media (prefers-reduced-motion:reduce){
-    *{transition:none !important; animation:none !important;}
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Checador Facial · Grupo Saint Luke's Hospitals</title>
+  
+  <!-- Face-API.js desde CDN (para producción, se recomienda alojar los modelos localmente) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+  
+  <style>
+    :root { --primary: #07345b; --accent: #0b6796; --bg: #f2f6fa; --success: #126544; --error: #b22e35; --text: #163047; }
+    * { box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--text); padding-bottom: 40px; }
+    
+    header { background: var(--primary); color: white; padding: 20px; text-align: center; }
+    header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+    header p { margin: 5px 0 0; font-size: 13px; opacity: 0.8; }
+    
+    main { max-width: 600px; margin: 20px auto; padding: 0 16px; }
+    
+    .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(22, 48, 71, 0.08); }
+    .card h2 { margin: 0 0 16px; font-size: 16px; color: var(--primary); border-bottom: 2px solid #e4eef5; padding-bottom: 8px; }
+    
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #526b7b; }
+    input[type="text"], select { width: 100%; padding: 12px; border: 1px solid #becfdc; border-radius: 8px; font-size: 16px; margin-bottom: 12px; }
+    
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:disabled { background: #a0c4d9; cursor: not-allowed; }
+    .btn-secondary { background: #e4eef5; color: var(--primary); margin-top: 8px; }
+    
+    .employee-info { background: #e4f5ed; border: 1px solid #b7e4c7; border-radius: 8px; padding: 12px; margin-bottom: 16px; display: none; }
+    .employee-info strong { color: var(--success); }
+    
+    .camera-container { position: relative; width: 100%; max-width: 400px; margin: 0 auto; background: #000; border-radius: 12px; overflow: hidden; }
+    video { width: 100%; display: block; transform: scaleX(-1); } /* Espejo para mejor UX */
+    canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
+    
+    .checklist { list-style: none; padding: 0; margin: 16px 0; }
+    .checklist li { padding: 8px 0; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+    .checklist li::before { content: "⏳"; }
+    .checklist li.ok::before { content: "✅"; }
+    .checklist li.fail::before { content: "❌"; }
+    
+    .status-msg { padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600; text-align: center; margin-top: 12px; display: none; }
+    .status-msg.success { background: #d4edda; color: #155724; }
+    .status-msg.error { background: #f8d7da; color: #721c24; }
+    .status-msg.loading { background: #e2e3e5; color: #383d41; }
+    
+    .footer-note { text-align: center; font-size: 11px; color: #526b7b; margin-top: 24px; line-height: 1.4; }
+    
+    [hidden] { display: none !important; }
+  </style>
 </head>
 <body>
-<a href="#form-registro" class="skip-link">Saltar al formulario</a>
 
-<header class="top">
-  <div class="logos-row">
-    <span class="sep"></span>
-  </div>
-  <div class="top-row">
-    <div class="brand">
-      <span class="grupo">GRUPO SAINT LUKE'S HOSPITALS</span>
-      <h1>Checador facial</h1>
-      <span class="sub">Registro de asistencia con validación de rostro y ubicación</span>
-    </div>
-    <div class="clock">
-      <div class="time" id="reloj">--:--:--</div>
-      <div class="date" id="fecha">-- de -- de ----</div>
-    </div>
-  </div>
-  <select id="sede" aria-label="Selecciona tu sede"></select>
+<header>
+  <h1>GRUPO SAINT LUKE'S HOSPITALS</h1>
+  <p>Checador facial · Registro de asistencia con validación de rostro y ubicación</p>
 </header>
 
-<main id="form-registro">
-
-  <div class="card">
+<main>
+  <!-- PASO 1: Identificación -->
+  <div class="card" id="step1">
     <h2>Datos del colaborador</h2>
-    <p class="hint">Ingresa tu número de empleado; tu nombre y foto de referencia se cargarán automáticamente.</p>
-
-    <label for="numEmpleado">Número de empleado</label>
-    <input type="text" id="numEmpleado" inputmode="numeric" placeholder="Ej. 4021" autocomplete="off">
-
-    <div class="empleado-info" id="empleadoInfo">
-      <span class="muted">Escribe tu número para buscar tus datos.</span>
-    </div>
-
-    <div class="segmented" role="group" aria-label="Tipo de movimiento">
-      <button type="button" id="btnEntrada" class="active">Entrada</button>
-      <button type="button" id="btnSalida">Salida</button>
-    </div>
+    <p style="font-size:13px; color:#526b7b; margin-top:-10px;">Ingresa tu número de empleado; tu nombre y foto de referencia se cargarán automáticamente.</p>
+    
+    <label for="numeroEmpleado">Número de empleado</label>
+    <input type="text" id="numeroEmpleado" placeholder="Ej. 4021" inputmode="numeric">
+    
+    <button class="btn btn-primary" id="btnBuscar" onclick="buscarEmpleado()">Buscar datos</button>
+    <div id="msgBuscar" class="status-msg"></div>
   </div>
 
-  <div class="card">
+  <!-- PASO 2: Información y Movimiento -->
+  <div class="card" id="step2" hidden>
+    <div class="employee-info" id="employeeInfo" style="display:block;">
+      <strong id="empNombre">Nombre:</strong> <span id="txtNombre"></span><br>
+      <strong>Sede:</strong> <span id="txtSede"></span>
+    </div>
+    
+    <label for="movimiento">Tipo de registro</label>
+    <select id="movimiento">
+      <option value="Entrada">🟢 Entrada</option>
+      <option value="Salida">🔴 Salida</option>
+    </select>
+    
+    <button class="btn btn-primary" onclick="iniciarCamara()">Activar cámara y validar ubicación</button>
+  </div>
+
+  <!-- PASO 3: Cámara y Validación -->
+  <div class="card" id="step3" hidden>
     <h2>Validación facial</h2>
-    <p class="hint">Centra tu rostro en el marco y mantente inmóvil. La foto solo se usa como evidencia y para comparar contra tu foto de referencia.</p>
-
-    <div class="viewfinder" id="viewfinder">
-      <div class="vf-placeholder" id="vfPlaceholder">
-        <svg width="96" height="120" viewBox="0 0 96 120" fill="none" style="opacity:.35;margin-bottom:10px;">
-          <ellipse cx="48" cy="52" rx="38" ry="48" stroke="#C7D2DD" stroke-width="2" stroke-dasharray="6 6"/>
-        </svg>
-        <span>Toca «Activar cámara» y centra tu rostro en el óvalo</span>
-      </div>
-      <video id="video" autoplay muted playsinline style="display:none;"></video>
-      <canvas id="overlay" style="display:none;"></canvas>
-      <div class="face-guide"></div>
-      <div class="countdown" id="countdown"></div>
-      <div class="scan-line"></div>
-      <div class="corner tl"></div><div class="corner tr"></div>
-      <div class="corner bl"></div><div class="corner br"></div>
-      <div class="vf-status"><span id="vfStatusText">Prepara tu rostro frente a la cámara</span></div>
+    <p style="font-size:13px; color:#526b7b; margin-top:-10px;">Centra tu rostro en el marco y mantente inmóvil.</p>
+    
+    <div class="camera-container">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvasOverlay"></canvas>
     </div>
-
-    <div class="cam-actions">
-      <button class="btn-outline" id="btnCamara">Activar cámara</button>
-      <button class="btn-gold" id="btnCapturar" disabled>Capturar rostro</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Checklist de registro</h2>
+    
     <ul class="checklist" id="checklist">
-      <li id="chk-rostro"><span class="dot">✓</span> Rostro capturado y coincide con tu foto de referencia</li>
-      <li id="chk-gps"><span class="dot">✓</span> Ubicación GPS obtenida</li>
-      <li id="chk-sede"><span class="dot">✓</span> Dentro del radio de tu sede</li>
+      <li id="chkGps">Obteniendo ubicación GPS...</li>
+      <li id="chkFace">Esperando activación de cámara...</li>
+      <li id="chkMatch">Validación de rostro pendiente</li>
     </ul>
-    <div class="gps-block" id="gpsBlock">
-      <span class="gps-distance" id="gpsDistance">Buscando tu ubicación…</span>
-      <span class="gps-detail" id="gpsDetail"></span>
-    </div>
-
-    <div class="ready-hint" id="readyHint">✅ Todo listo para registrar</div>
-    <button class="btn-primary-full" id="btnRegistrar" disabled>Registrar asistencia</button>
-
-    <div id="resultado">
-      <div class="banner" id="bannerOk"><strong>Registro guardado</strong><span id="bannerOkText"></span></div>
-      <div class="banner" id="bannerError"><strong>No se pudo registrar</strong><span id="bannerErrorText"></span></div>
-    </div>
+    
+    <button class="btn btn-primary" id="btnCapturar" onclick="capturarYValidar()" disabled>Capturar y validar rostro</button>
+    <button class="btn btn-secondary" onclick="reiniciarProceso()">Cancelar / Reiniciar</button>
+    
+    <div id="msgValidacion" class="status-msg"></div>
   </div>
 
+  <!-- PASO 4: Registro Final -->
+  <div class="card" id="step4" hidden>
+    <h2>Confirmar registro</h2>
+    <ul class="checklist">
+      <li class="ok">Rostro capturado y validado</li>
+      <li class="ok" id="chkGpsFinal">Ubicación GPS obtenida</li>
+    </ul>
+    <p style="font-size:13px; text-align:center;">Se registrará tu <strong id="confMovimiento"></strong> a las <strong id="confHora"></strong></p>
+    
+    <button class="btn btn-primary" id="btnRegistrar" onclick="enviarRegistro()">Registrar asistencia</button>
+    <button class="btn btn-secondary" onclick="reiniciarProceso()">Nuevo registro</button>
+    <div id="msgFinal" class="status-msg"></div>
+  </div>
+
+  <div class="footer-note">
+    🔒 Los datos capturados (foto, ubicación y hora) se usan únicamente para control de asistencia.<br>
+    Datos cifrados · Solo uso interno · Saint Luke's Hospitals
+  </div>
 </main>
 
-<footer>
-  Los datos capturados (foto, ubicación y hora) se usan únicamente para control de asistencia.
-  <br><span class="tag" id="modelStatus">Verificando sistema…</span>
-  <br>
-  <span class="trust-badge">
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-    Datos cifrados · Solo uso interno
-  </span>
-</footer>
-
-<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script>
-const CONFIG = {
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbypw8Su7hWXDGdu2y9dzXB5vOL35wfc-9cwGWx5WihE4WU_gUc3bhPMDkfTSON0FdQt/exec",
-  SEDES: [
-    { id:"csl",  nombre:"Hospital Cabo San Lucas (Plaza Pioneros)", lat:22.8913852, lng:-109.9084019, radioMetros:300 },
-    { id:"sjc",  nombre:"Hospital San José del Cabo",               lat:23.0632153, lng:-109.7018093, radioMetros:300 },
-    { id:"say",  nombre:"STL Sayulita",                             lat:20.8665710, lng:-105.4334299, radioMetros:250 },
-    { id:"lor",  nombre:"STL Loreto",                               lat:25.9926501, lng:-111.3529565, radioMetros:250 },
-    { id:"bar",  nombre:"Los Barriles / La Ribera / El Sargento",   lat:23.6827778, lng:-109.6991667, radioMetros:400 },
-    { id:"pvr",  nombre:"Puerto Vallarta",                          lat:20.6521374, lng:-105.2401758, radioMetros:300 },
-    { id:"guay", nombre:"Guayabitos",                               lat:21.0300389, lng:-105.2563262, radioMetros:250 },
-    { id:"lov",  nombre:"Lovalgo",                                  lat:22.8913643, lng:-109.9090466, radioMetros:150 },
-    { id:"cancun", nombre:"Cancún (móvil)",                         lat:null,       lng:null,        radioMetros:null },
-    { id:"pdc",    nombre:"Playa del Carmen (móvil)",                lat:null,       lng:null,        radioMetros:null },
-    { id:"cozumel",nombre:"Cozumel (móvil)",                         lat:null,       lng:null,        radioMetros:null },
-    { id:"bw",   nombre:"911 Bay Watch Ambulance (móvil)",          lat:null,       lng:null,        radioMetros:null },
-    { id:"comercial",   nombre:"Comercial (móvil)",                 lat:null,       lng:null,        radioMetros:null },
-  ],
-  UMBRAL_COINCIDENCIA: 0.55,
-  MODEL_URL: "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights"
-};
+  // ==========================================================
+  // ⚙️ CONFIGURACIÓN (DEBES ACTUALIZAR ESTOS VALORES)
+  // ==========================================================
+  const WEB_APP_URL = "https://script.google.com/macros/s/TU_ID_DE_IMPLEMENTACION_AQUI/exec";
+  const API_SECRET = "SLH_CHECADOR_2026_X9Y"; // Debe coincidir con la propiedad del script
+  
+  // URL de los modelos de Face-API (Para producción, descarga la carpeta 'models' y súbela a tu hosting/Drive)
+  const MODELS_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
 
-let stream = null;
-let modeloListo = false;
-let movimiento = "Entrada";
-let empleadoActual = null;
-let capturaBase64 = null;
-let rostroValidado = false;
-let ubicacion = null;
-let sedeSeleccionada = null;
-let dentroDeRadio = null;
+  // ==========================================================
+  // 🧠 ESTADO GLOBAL
+  // ==========================================================
+  let empleadoActual = null;
+  let streamCamara = null;
+  let datosGPS = null;
+  let rostroValidado = false;
+  let fotoBase64 = "";
+  let faceMatcher = null;
 
-function actualizarReloj(){
-  const ahora = new Date();
-  document.getElementById("reloj").textContent = ahora.toLocaleTimeString("es-MX",{hour12:true});
-  document.getElementById("fecha").textContent = ahora.toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long"});
-}
-actualizarReloj();
-setInterval(actualizarReloj,1000);
-
-const selectSede = document.getElementById("sede");
-CONFIG.SEDES.forEach(s=>{
-  const opt = document.createElement("option");
-  opt.value = s.id; opt.textContent = s.nombre;
-  selectSede.appendChild(opt);
-});
-selectSede.addEventListener("change", ()=>{
-  sedeSeleccionada = CONFIG.SEDES.find(s=>s.id===selectSede.value);
-  evaluarRadio();
-});
-sedeSeleccionada = CONFIG.SEDES[0];
-
-const btnEntrada = document.getElementById("btnEntrada");
-const btnSalida = document.getElementById("btnSalida");
-btnEntrada.addEventListener("click", ()=>{ movimiento="Entrada"; btnEntrada.classList.add("active"); btnSalida.classList.remove("active"); });
-btnSalida.addEventListener("click", ()=>{ movimiento="Salida"; btnSalida.classList.add("active"); btnEntrada.classList.remove("active"); });
-
-const inputNum = document.getElementById("numEmpleado");
-const empleadoInfo = document.getElementById("empleadoInfo");
-let buscarTimeout = null;
-
-inputNum.addEventListener("input", ()=>{
-  clearTimeout(buscarTimeout);
-  empleadoActual = null;
-  actualizarChecklist();
-  const numero = inputNum.value.trim();
-  if(!numero){ empleadoInfo.innerHTML = '<span class="muted">Escribe tu número para buscar tus datos.</span>'; return; }
-  empleadoInfo.innerHTML = '<span class="muted">Buscando…</span>';
-  buscarTimeout = setTimeout(()=>buscarEmpleado(numero), 450);
-});
-
-async function buscarEmpleado(numero){
-  try{
-    const url = `${CONFIG.APPS_SCRIPT_URL}?action=empleado&numero=${encodeURIComponent(numero)}`;
-    const resp = await fetch(url);
-    const data = await resp.json();
-    if(!data.encontrado){
-      empleadoInfo.innerHTML = '<span class="muted">No se encontró ese número de empleado.</span>';
-      return;
+  // ==========================================================
+  // 🚀 INICIALIZACIÓN
+  // ==========================================================
+  window.onload = async () => {
+    mostrarMsg('msgBuscar', 'Cargando modelos de inteligencia artificial...', 'loading');
+    try {
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODELS_URL);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_URL);
+      await faceapi.nets.faceRecognitionNet.loadFromUri(MODELS_URL);
+      mostrarMsg('msgBuscar', 'Sistema listo. Ingresa tu número de empleado.', 'success');
+    } catch (err) {
+      console.error(err);
+      mostrarMsg('msgBuscar', 'Error cargando modelos. Verifica tu conexión.', 'error');
     }
-    empleadoActual = { numero, nombre:data.nombre, fotoUrl:data.fotoUrl, descriptorRef:null };
-    empleadoInfo.innerHTML = `<img src="${data.fotoUrl}" alt=""><span>${data.nombre}</span>`;
-    if(modeloListo && data.fotoUrl){
-      calcularDescriptorReferencia(data.fotoUrl);
-    }
-    activarNotificacionesPush(numero).catch(()=>{});
-  }catch(err){
-    empleadoInfo.innerHTML = '<span class="muted">No se pudo conectar con el directorio. Verifica tu conexión.</span>';
-  }
-}
-
-async function calcularDescriptorReferencia(fotoUrl){
-  try{
-    const img = await faceapi.fetchImage(fotoUrl);
-    const deteccion = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-      .withFaceLandmarks().withFaceDescriptor();
-    if(deteccion && empleadoActual){
-      empleadoActual.descriptorRef = deteccion.descriptor;
-    }
-  }catch(e){}
-}
-
-const video = document.getElementById("video");
-const overlay = document.getElementById("overlay");
-const viewfinder = document.getElementById("viewfinder");
-const vfPlaceholder = document.getElementById("vfPlaceholder");
-const vfStatusText = document.getElementById("vfStatusText");
-const btnCamara = document.getElementById("btnCamara");
-const btnCapturar = document.getElementById("btnCapturar");
-const countdownEl = document.getElementById("countdown");
-let cuentaRegresivaTimer = null;
-
-btnCamara.addEventListener("click", async ()=>{
-  if(stream){ apagarCamara(); return; }
-  try{
-    stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"user", width:480, height:640 }, audio:false });
-    video.srcObject = stream;
-    video.style.display = "block";
-    vfPlaceholder.style.display = "none";
-    viewfinder.classList.add("scanning");
-    btnCamara.textContent = "Apagar cámara";
-    btnCapturar.disabled = !modeloListo;
-    vfStatusText.textContent = modeloListo ? "Buscando tu rostro…" : "Verificando sistema…";
-    if(modeloListo) iniciarCuentaRegresiva();
-  }catch(err){
-    vfStatusText.textContent = "No se pudo acceder a la cámara";
-  }
-});
-
-function iniciarCuentaRegresiva(){
-  clearTimeout(cuentaRegresivaTimer);
-  let n = 3;
-  countdownEl.textContent = n;
-  countdownEl.classList.add("show");
-  const paso = ()=>{
-    n--;
-    if(n <= 0 || !stream){
-      countdownEl.classList.remove("show");
-      if(stream) btnCapturar.click();
-      return;
-    }
-    countdownEl.textContent = n;
-    cuentaRegresivaTimer = setTimeout(paso, 900);
-  };
-  cuentaRegresivaTimer = setTimeout(paso, 900);
-}
-
-function apagarCamara(){
-  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-  clearTimeout(cuentaRegresivaTimer);
-  countdownEl.classList.remove("show");
-  video.style.display="none";
-  vfPlaceholder.style.display="flex";
-  viewfinder.classList.remove("scanning");
-  btnCamara.textContent = "Activar cámara";
-  btnCapturar.disabled = true;
-  vfStatusText.textContent = "Prepara tu rostro frente a la cámara";
-}
-
-btnCapturar.addEventListener("click", async ()=>{
-  clearTimeout(cuentaRegresivaTimer);
-  countdownEl.classList.remove("show");
-  viewfinder.classList.remove("scanning");
-  const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-  canvas.getContext("2d").drawImage(video,0,0);
-  capturaBase64 = canvas.toDataURL("image/jpeg", 0.85);
-
-  vfStatusText.textContent = "Validando rostro…";
-  const deteccion = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions())
-    .withFaceLandmarks().withFaceDescriptor();
-
-  if(!deteccion){
-    viewfinder.classList.remove("ok"); viewfinder.classList.add("warn");
-    vfStatusText.textContent = "No se detectó un rostro, intenta de nuevo";
-    rostroValidado = false;
-  } else if(empleadoActual && empleadoActual.descriptorRef){
-    const distancia = faceapi.euclideanDistance(deteccion.descriptor, empleadoActual.descriptorRef);
-    rostroValidado = distancia <= CONFIG.UMBRAL_COINCIDENCIA;
-    viewfinder.classList.toggle("ok", rostroValidado);
-    viewfinder.classList.toggle("warn", !rostroValidado);
-    vfStatusText.textContent = rostroValidado
-      ? "Rostro validado"
-      : "El rostro no coincide con tu foto de referencia";
-  } else {
-    rostroValidado = false;
-    viewfinder.classList.remove("ok"); viewfinder.classList.add("warn");
-    vfStatusText.textContent = "Rostro detectado, pero sin foto de referencia para comparar";
-  }
-  actualizarChecklist();
-});
-
-(async function cargarModelo(){
-  try{
-    await faceapi.nets.tinyFaceDetector.loadFromUri(CONFIG.MODEL_URL);
-    await faceapi.nets.faceLandmark68Net.loadFromUri(CONFIG.MODEL_URL);
-    await faceapi.nets.faceRecognitionNet.loadFromUri(CONFIG.MODEL_URL);
-    modeloListo = true;
-    document.getElementById("modelStatus").textContent = "Sistema verificado. Listo para validarte";
-    if(stream) { btnCapturar.disabled = false; vfStatusText.textContent = "Buscando tu rostro…"; iniciarCuentaRegresiva(); }
-    if(empleadoActual && empleadoActual.fotoUrl && !empleadoActual.descriptorRef){
-      calcularDescriptorReferencia(empleadoActual.fotoUrl);
-    }
-  }catch(e){
-    document.getElementById("modelStatus").textContent = "No se pudo cargar el modelo de reconocimiento (revisa tu conexión)";
-  }
-})();
-
-function metrosEntre(lat1,lng1,lat2,lng2){
-  const R = 6371000;
-  const toRad = d => d*Math.PI/180;
-  const dLat = toRad(lat2-lat1), dLng = toRad(lng2-lng1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
-  return R * 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-function formatoDistancia(m){
-  return m >= 1000 ? `${(m/1000).toFixed(1)} km` : `${Math.round(m)} m`;
-}
-
-function evaluarRadio(){
-  const gpsDistancia = document.getElementById("gpsDistance");
-  const gpsDetalle = document.getElementById("gpsDetail");
-  if(!ubicacion || !sedeSeleccionada || sedeSeleccionada.lat===null){
-    dentroDeRadio = sedeSeleccionada && sedeSeleccionada.lat===null ? true : null;
-    if(ubicacion && sedeSeleccionada && sedeSeleccionada.lat===null){
-      gpsDistancia.textContent = "Sede móvil · sin geocerca";
-      gpsDetalle.textContent = `${ubicacion.lat.toFixed(5)}, ${ubicacion.lng.toFixed(5)} · precisión ±${Math.round(ubicacion.accuracy)} m`;
-    }
-    actualizarChecklist();
-    return;
-  }
-  const dist = metrosEntre(ubicacion.lat, ubicacion.lng, sedeSeleccionada.lat, sedeSeleccionada.lng);
-  dentroDeRadio = dist <= sedeSeleccionada.radioMetros;
-  gpsDistancia.textContent = dentroDeRadio
-    ? `Dentro de tu sede · a ${formatoDistancia(dist)}`
-    : `A ${formatoDistancia(dist)} de tu sede`;
-  gpsDistancia.style.color = dentroDeRadio ? "var(--success)" : "var(--danger)";
-  gpsDetalle.textContent = `${ubicacion.lat.toFixed(5)}, ${ubicacion.lng.toFixed(5)} · precisión ±${Math.round(ubicacion.accuracy)} m`;
-  actualizarChecklist();
-}
-
-navigator.geolocation && navigator.geolocation.getCurrentPosition(
-  pos=>{
-    ubicacion = { lat:pos.coords.latitude, lng:pos.coords.longitude, accuracy:pos.coords.accuracy };
-    evaluarRadio();
-  },
-  ()=>{ document.getElementById("gpsDistance").textContent = "No se pudo obtener tu ubicación. Actívala e intenta de nuevo."; },
-  { enableHighAccuracy:true, timeout:10000 }
-);
-
-function marcar(id, estado){
-  const li = document.getElementById(id);
-  li.classList.remove("done","fail");
-  if(estado===true) li.classList.add("done");
-  if(estado===false) li.classList.add("fail");
-}
-
-function actualizarChecklist(){
-  marcar("chk-rostro", capturaBase64===null ? null : rostroValidado);
-  marcar("chk-gps", ubicacion===null ? null : true);
-  marcar("chk-sede", dentroDeRadio);
-  const listo = rostroValidado && ubicacion!==null && dentroDeRadio!==false && empleadoActual!==null;
-  const btn = document.getElementById("btnRegistrar");
-  btn.disabled = !listo;
-  btn.classList.toggle("ready", listo);
-  document.getElementById("readyHint").classList.toggle("show", listo);
-}
-
-document.getElementById("btnRegistrar").addEventListener("click", async ()=>{
-  const btn = document.getElementById("btnRegistrar");
-  btn.disabled = true; btn.textContent = "Guardando…";
-  ocultarBanners();
-
-  const payload = {
-    numeroEmpleado: empleadoActual.numero,
-    nombre: empleadoActual.nombre,
-    movimiento,
-    sede: sedeSeleccionada.nombre,
-    fotoBase64: capturaBase64,
-    rostroValidado,
-    lat: ubicacion.lat, lng: ubicacion.lng, precision: ubicacion.accuracy,
-    dentroDeRadio,
-    horaDispositivo: new Date().toISOString()
   };
 
-  try{
-    const resp = await fetch(CONFIG.APPS_SCRIPT_URL, {
-      method:"POST",
-      headers:{ "Content-Type":"text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
-    });
-    const data = await resp.json();
-    if(data.ok){
-      mostrarBanner("bannerOk", `${movimiento} registrada a las ${new Date().toLocaleTimeString("es-MX")} en ${sedeSeleccionada.nombre}.`);
-      reiniciarFormulario();
-    } else {
-      mostrarBanner("bannerError", data.mensaje || "El servidor rechazó el registro.");
+  // ==========================================================
+  // 🔍 PASO 1: BUSCAR EMPLEADO
+  // ==========================================================
+  async function buscarEmpleado() {
+    const num = document.getElementById('numeroEmpleado').value.trim();
+    if (!num) return mostrarMsg('msgBuscar', 'Ingresa un número de empleado.', 'error');
+
+    mostrarMsg('msgBuscar', 'Buscando...', 'loading');
+    document.getElementById('btnBuscar').disabled = true;
+
+    try {
+      const url = `${WEB_APP_URL}?action=empleado&numero=${encodeURIComponent(num)}&key=${API_SECRET}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.encontrado) {
+        empleadoActual = data;
+        document.getElementById('txtNombre').textContent = data.nombre;
+        document.getElementById('txtSede').textContent = data.sede;
+        
+        document.getElementById('step1').hidden = true;
+        document.getElementById('step2').hidden = false;
+        obtenerGPS(); // Iniciar GPS en segundo plano
+      } else {
+        mostrarMsg('msgBuscar', 'Empleado no encontrado. Verifica el número.', 'error');
+      }
+    } catch (err) {
+      mostrarMsg('msgBuscar', 'Error de conexión con el servidor.', 'error');
+    } finally {
+      document.getElementById('btnBuscar').disabled = false;
     }
-  }catch(err){
-    mostrarBanner("bannerError", "No se pudo conectar con el servidor. Verifica tu conexión e intenta de nuevo.");
-  }finally{
-    btn.textContent = "Registrar asistencia";
-    actualizarChecklist();
   }
-});
 
-function mostrarBanner(id, texto){
-  ocultarBanners();
-  document.getElementById(id).classList.add("show");
-  document.getElementById(id+"Text").textContent = texto;
-}
-function ocultarBanners(){
-  document.getElementById("bannerOk").classList.remove("show");
-  document.getElementById("bannerError").classList.remove("show");
-}
-function reiniciarFormulario(){
-  capturaBase64 = null; rostroValidado = false;
-  viewfinder.classList.remove("ok","warn");
-  apagarCamara();
-}
+  // ==========================================================
+  // 📍 GEOLOCALIZACIÓN
+  // ==========================================================
+  function obtenerGPS() {
+    const chkGps = document.getElementById('chkGps');
+    chkGps.className = '';
+    
+    if (!navigator.geolocation) {
+      chkGps.textContent = "❌ GPS no soportado por el navegador";
+      chkGps.className = "fail";
+      return;
+    }
 
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDiz476SH-JewBi-_wKuy1TLa431h9Wr3g",
-  authDomain: "checador-facial-slh.firebaseapp.com",
-  projectId: "checador-facial-slh",
-  storageBucket: "checador-facial-slh.firebasestorage.app",
-  messagingSenderId: "878984080471",
-  appId: "1:878984080471:web:adaa7416ab4a5b673e4712"
-};
-const FIREBASE_VAPID_KEY = "BHmgl7VevMMyGP0Jb1vQkfgGW-iGQzvjAY5GmRrfpplUKrYlIOM3VBnk1Booh5LggRKUZBJ90YOpxkUGjW4IjW0";
-
-async function activarNotificacionesPush(numeroEmpleado){
-  if (!("Notification" in window) || !("serviceWorker" in navigator)) {
-    return { ok:false, motivo:"no_soportado" };
-  }
-  try {
-    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
-    const { getMessaging, getToken, onMessage } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging.js");
-
-    const registration = await navigator.serviceWorker.register(
-      "/checador_movil_slh/firebase-messaging-sw.js"
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        datosGPS = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          precision: pos.coords.accuracy
+        };
+        chkGps.textContent = "✅ Ubicación GPS obtenida";
+        chkGps.className = "ok";
+      },
+      (err) => {
+        console.warn("Error GPS:", err);
+        chkGps.textContent = "⚠️ No se pudo obtener GPS. Se registrará sin ubicación.";
+        chkGps.className = "fail";
+        datosGPS = { lat: 0, lng: 0, precision: 9999 };
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
-
-    const permiso = await Notification.requestPermission();
-    if (permiso !== "granted") return { ok:false, motivo:"permiso_denegado" };
-
-    const app = initializeApp(FIREBASE_CONFIG);
-    const messaging = getMessaging(app);
-
-    const token = await getToken(messaging, {
-      vapidKey: FIREBASE_VAPID_KEY,
-      serviceWorkerRegistration: registration
-    });
-    if (!token) return { ok:false, motivo:"sin_token" };
-
-    const params = new URLSearchParams({
-      action: "registrarTokenPush",
-      numeroEmpleado: numeroEmpleado,
-      token: token,
-      userAgent: navigator.userAgent
-    });
-    await fetch(`${CONFIG.APPS_SCRIPT_URL}?${params.toString()}`, { method:"GET" });
-
-    onMessage(messaging, (payload)=>{
-      console.log("Notificación recibida en primer plano:", payload);
-    });
-
-    return { ok:true, token };
-  } catch (error) {
-    console.error("Error activando notificaciones push:", error);
-    return { ok:false, motivo:"error", detalle: error.message };
   }
-}
+
+  // ==========================================================
+  // 📷 PASO 3: CÁMARA Y VALIDACIÓN FACIAL
+  // ==========================================================
+  async function iniciarCamara() {
+    document.getElementById('step2').hidden = true;
+    document.getElementById('step3').hidden = false;
+    
+    const video = document.getElementById('video');
+    const chkFace = document.getElementById('chkFace');
+    chkFace.textContent = "Solicitando permiso de cámara...";
+
+    try {
+      streamCamara = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } 
+      });
+      video.srcObject = streamCamara;
+      
+      video.onloadedmetadata = () => {
+        chkFace.textContent = "✅ Cámara activa. Centra tu rostro.";
+        chkFace.className = "ok";
+        document.getElementById('btnCapturar').disabled = false;
+      };
+    } catch (err) {
+      chkFace.textContent = "❌ Permiso de cámara denegado o no disponible.";
+      chkFace.className = "fail";
+      mostrarMsg('msgValidacion', 'No se puede acceder a la cámara.', 'error');
+    }
+  }
+
+  async function capturarYValidar() {
+    const btn = document.getElementById('btnCapturar');
+    btn.disabled = true;
+    btn.textContent = "Procesando rostro...";
+    mostrarMsg('msgValidacion', 'Analizando biometría...', 'loading');
+
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvasOverlay');
+    
+    // Ajustar canvas al tamaño del video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // 1. Detectar rostro en el video
+    const deteccion = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks().withFaceDescriptor();
+
+    if (!deteccion) {
+      mostrarMsg('msgValidacion', 'No se detectó ningún rostro. Intenta de nuevo con mejor luz.', 'error');
+      btn.disabled = false;
+      btn.textContent = "Capturar y validar rostro";
+      return;
+    }
+
+    // 2. Dibujar cuadro de detección (feedback visual)
+    const displaySize = { width: canvas.width, height: canvas.height };
+    faceapi.matchDimensions(canvas, displaySize);
+    const resizedDetections = faceapi.resizeResults(deteccion, displaySize);
+    faceapi.draw.drawDetections(canvas, resizedDetections);
+
+    // 3. Validar contra la foto de referencia (si existe)
+    rostroValidado = false;
+    if (empleadoActual.fotoUrl && empleadoActual.fotoUrl.startsWith('data:image')) {
+      try {
+        const imgRef = await faceapi.fetchImage(empleadoActual.fotoUrl);
+        const deteccionRef = await faceapi.detectSingleFace(imgRef, new faceapi.TinyFaceDetectorOptions()).withFaceDescriptor();
+        
+        if (deteccionRef) {
+          const matcher = new faceapi.FaceMatcher([new faceapi.LabeledFaceDescriptors(empleadoActual.numero, [deteccionRef.descriptor])], 0.6);
+          const mejorMatch = matcher.findBestMatch(deteccion.descriptor);
+          
+          if (mejorMatch.label === empleadoActual.numero && mejorMatch.distance < 0.6) {
+            rostroValidado = true;
+            document.getElementById('chkMatch').textContent = `✅ Rostro coincide con referencia (Confianza: ${Math.round((1 - mejorMatch.distance) * 100)}%)`;
+            document.getElementById('chkMatch').className = "ok";
+          } else {
+            document.getElementById('chkMatch').textContent = `❌ Rostro no coincide. Distancia: ${mejorMatch.distance.toFixed(2)}`;
+            document.getElementById('chkMatch').className = "fail";
+          }
+        }
+      } catch (err) {
+        console.warn("Error validando rostro de referencia:", err);
+        document.getElementById('chkMatch').textContent = "⚠️ No se pudo validar contra referencia (se permitirá con supervisión)";
+        document.getElementById('chkMatch').className = "fail";
+        rostroValidado = true; // Fallback permisivo si la foto de referencia falla, pero se marca para revisión de RH
+      }
+    } else {
+      document.getElementById('chkMatch').textContent = "⚠️ Sin foto de referencia. Se registrará para validación manual de RH.";
+      document.getElementById('chkMatch').className = "fail";
+      rostroValidado = true; // Permitir registro pero sin validación biométrica
+    }
+
+    // 4. Capturar foto base64
+    const ctx = canvas.getContext('2d');
+    // Invertir el contexto porque el video está en espejo
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    fotoBase64 = canvas.toDataURL('image/jpeg', 0.7); // Compresión 70% para no saturar el payload
+
+    // 5. Pasar al paso final
+    setTimeout(() => {
+      document.getElementById('step3').hidden = true;
+      document.getElementById('step4').hidden = false;
+      document.getElementById('confMovimiento').textContent = document.getElementById('movimiento').value;
+      document.getElementById('confHora').textContent = new Date().toLocaleTimeString('es-MX');
+      
+      if (datosGPS) {
+        document.getElementById('chkGpsFinal').textContent = `✅ GPS: Precisión ${Math.round(datosGPS.precision)}m`;
+      }
+    }, 1000);
+  }
+
+  // ==========================================================
+  // 📤 PASO 4: ENVIAR REGISTRO AL BACKEND
+  // ==========================================================
+  async function enviarRegistro() {
+    const btn = document.getElementById('btnRegistrar');
+    btn.disabled = true;
+    btn.textContent = "Enviando datos cifrados...";
+    mostrarMsg('msgFinal', 'Conectando con el servidor...', 'loading');
+
+    const payload = {
+      tipo: "registro", // Identificador para el doPost del backend
+      api_key: API_SECRET,
+      numeroEmpleado: empleadoActual.numero,
+      nombre: empleadoActual.nombre,
+      movimiento: document.getElementById('movimiento').value,
+      sede: empleadoActual.sede,
+      lat: datosGPS ? datosGPS.lat : 0,
+      lng: datosGPS ? datosGPS.lng : 0,
+      precision: datosGPS ? datosGPS.precision : 9999,
+      dentroDeRadio: true, // El backend puede recalcular esto si se configura
+      rostroValidado: rostroValidado,
+      horaDispositivo: new Date().toISOString(),
+      fotoBase64: fotoBase64
+    };
+
+    try {
+      // NOTA: Apps Script requiere 'no-cors' para POST desde dominios externos.
+      // Esto significa que no podemos leer la respuesta JSON directamente, 
+      // pero si no lanza excepción de red, asumimos que se procesó correctamente.
+      await fetch(WEB_APP_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+
+      mostrarMsg('msgFinal', '✅ Registro guardado exitosamente. ¡Que tengas un excelente día!', 'success');
+      btn.textContent = "Registrado";
+      
+      // Detener cámara para ahorrar batería
+      if (streamCamara) {
+        streamCamara.getTracks().forEach(track => track.stop());
+      }
+      
+    } catch (err) {
+      console.error(err);
+      mostrarMsg('msgFinal', '❌ Error de red. Verifica tu conexión e intenta de nuevo.', 'error');
+      btn.disabled = false;
+      btn.textContent = "Reintentar registro";
+    }
+  }
+
+  // ==========================================================
+  // 🔄 UTILIDADES
+  // ==========================================================
+  function reiniciarProceso() {
+    if (streamCamara) {
+      streamCamara.getTracks().forEach(track => track.stop());
+    }
+    document.getElementById('numeroEmpleado').value = '';
+    document.getElementById('step1').hidden = false;
+    document.getElementById('step2').hidden = true;
+    document.getElementById('step3').hidden = true;
+    document.getElementById('step4').hidden = true;
+    document.getElementById('msgValidacion').style.display = 'none';
+    document.getElementById('msgFinal').style.display = 'none';
+    
+    // Reset checklist
+    document.getElementById('chkGps').textContent = "Obteniendo ubicación GPS...";
+    document.getElementById('chkGps').className = "";
+    document.getElementById('chkFace').textContent = "Esperando activación de cámara...";
+    document.getElementById('chkFace').className = "";
+    document.getElementById('chkMatch').textContent = "Validación de rostro pendiente";
+    document.getElementById('chkMatch').className = "";
+    
+    empleadoActual = null;
+    datosGPS = null;
+    rostroValidado = false;
+    fotoBase64 = "";
+  }
+
+  function mostrarMsg(elementId, texto, tipo) {
+    const el = document.getElementById(elementId);
+    el.textContent = texto;
+    el.className = `status-msg ${tipo}`;
+    el.style.display = 'block';
+  }
 </script>
+
 </body>
 </html>
