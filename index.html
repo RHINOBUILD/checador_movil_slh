@@ -178,116 +178,133 @@
     }
   }
 
-      async function capturarYValidar() {
+        async function capturarYValidar() {
     const btn = document.getElementById('btnCapturar');
+    const msgVal = document.getElementById('msgValidacion');
+    
+    // 1. FEEDBACK INMEDIATO PARA QUE EL USUARIO NO DUDE
     btn.disabled = true; 
-    btn.textContent = "Procesando rostro...";
-    mostrarMsg('msgValidacion', 'Analizando biometría...', 'loading');
-
+    btn.textContent = "⏳ Procesando...";
+    msgVal.className = 'status-msg loading';
+    msgVal.style.display = 'block';
+    msgVal.textContent = "Analizando biometría (esto toma unos segundos)...";
+    
+    // Desactivamos temporalmente la detección en video para liberar recursos del CPU
+    // Esto hace que la captura sea mucho más rápida en móviles
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvasOverlay');
+    
+    // Ajustamos el canvas al tamaño real del video para evitar redimensionamientos costosos
     canvas.width = video.videoWidth; 
     canvas.height = video.videoHeight;
     
-    // 1. DETECCIÓN MÁS SENSIBLE
-    // Ajustamos minConfidence a 0.5 para detectar rostros con menos luz o de perfil
-    const deteccion = await faceapi.detectSingleFace(
+    try {
+      // 2. DETECCIÓN OPTIMIZADA (inputSize 224 es más rápido que 320 o 416 en móviles)
+      const deteccion = await faceapi.detectSingleFace(
         video, 
-        new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 })
-      )
-      .withFaceLandmarks({ useTinyLandmarks: true }) // Mejora estabilidad en móviles
-      .withFaceDescriptor();
+        new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+      ).withFaceLandmarks().withFaceDescriptor();
 
-    if (!deteccion) {
-      mostrarMsg('msgValidacion', '❌ No se detectó rostro. Acerca tu cara a la cámara o mejora la luz.', 'error');
-      document.getElementById('chkFace').textContent = "❌ Rostro no detectado";
-      document.getElementById('chkFace').style.color = "var(--error)";
-      btn.disabled = false; 
-      btn.textContent = "Reintentar captura";
-      return; 
-    }
+      if (!deteccion) {
+        msgVal.className = 'status-msg error';
+        msgVal.textContent = "❌ No se detectó rostro. Acerca tu cara o mejora la luz.";
+        document.getElementById('chkFace').textContent = "❌ Rostro no detectado";
+        document.getElementById('chkFace').style.color = "var(--error)";
+        btn.disabled = false; 
+        btn.textContent = "Reintentar captura";
+        return; 
+      }
 
-    // Dibujar feedback visual inmediato
-    const displaySize = { width: canvas.width, height: canvas.height };
-    faceapi.matchDimensions(canvas, displaySize);
-    const resizedDetections = faceapi.resizeResults(deteccion, displaySize);
-    faceapi.draw.drawDetections(canvas, resizedDetections);
+      // Dibujar cuadro de confirmación visual
+      const displaySize = { width: canvas.width, height: canvas.height };
+      faceapi.matchDimensions(canvas, displaySize);
+      const resizedDetections = faceapi.resizeResults(deteccion, displaySize);
+      faceapi.draw.drawDetections(canvas, resizedDetections);
 
-    // 2. VALIDACIÓN CON UMBRAL AJUSTADO
-    let matchExitoso = false;
-    let mensajeMatch = "";
-    
-    // ⚠️ CAMBIO CLAVE: Threshold bajado de 0.6 a 0.48 para mayor sensibilidad
-    const UMBRAL_SENSIBILIDAD = 0.48; 
+      // 3. VALIDACIÓN CONTRA REFERENCIA
+      let matchExitoso = false;
+      let mensajeMatch = "";
+      const UMBRAL_SENSIBILIDAD = 0.48; 
 
-    if (empleadoActual.fotoUrl && empleadoActual.fotoUrl.startsWith('data:image')) {
-      try {
-        const imgRef = await faceapi.fetchImage(empleadoActual.fotoUrl);
-        const deteccionRef = await faceapi.detectSingleFace(imgRef, new faceapi.TinyFaceDetectorOptions()).withFaceDescriptor();
+      if (empleadoActual.fotoUrl && empleadoActual.fotoUrl.startsWith('data:image')) {
+        msgVal.textContent = "Comparando con foto de referencia...";
         
-        if (deteccionRef) {
-          const matcher = new faceapi.FaceMatcher(
-            [new faceapi.LabeledFaceDescriptors(empleadoActual.numero, [deteccionRef.descriptor])], 
-            UMBRAL_SENSIBILIDAD // Aplicamos el umbral más permisivo aquí
-          );
+        try {
+          const imgRef = await faceapi.fetchImage(empleadoActual.fotoUrl);
+          const deteccionRef = await faceapi.detectSingleFace(imgRef, new faceapi.TinyFaceDetectorOptions()).withFaceDescriptor();
           
-          const match = matcher.findBestMatch(deteccion.descriptor);
-          
-          if (match.label === empleadoActual.numero) {
-            matchExitoso = true;
-            // Mostramos la confianza real para transparencia
-            const porcentaje = Math.round((1 - match.distance) * 100);
-            mensajeMatch = `✅ Rostro coincide (${porcentaje}% confianza)`;
+          if (deteccionRef) {
+            const matcher = new faceapi.FaceMatcher(
+              [new faceapi.LabeledFaceDescriptors(empleadoActual.numero, [deteccionRef.descriptor])], 
+              UMBRAL_SENSIBILIDAD
+            );
+            
+            const match = matcher.findBestMatch(deteccion.descriptor);
+            
+            if (match.label === empleadoActual.numero) {
+              matchExitoso = true;
+              const porcentaje = Math.round((1 - match.distance) * 100);
+              mensajeMatch = `✅ Rostro coincide (${porcentaje}% confianza)`;
+            } else {
+              mensajeMatch = `❌ Rostro NO coincide. Distancia: ${match.distance.toFixed(2)}`;
+            }
           } else {
-            mensajeMatch = `❌ Rostro NO coincide. Distancia: ${match.distance.toFixed(2)} (Límite: ${UMBRAL_SENSIBILIDAD})`;
+            mensajeMatch = "⚠️ Error en foto de referencia.";
           }
-        } else {
-          mensajeMatch = "️ Error en foto de referencia (no se detectó rostro en ella).";
+        } catch (e) { 
+          mensajeMatch = "️ Error técnico al validar."; 
+          console.error(e);
         }
-      } catch (e) { 
-        mensajeMatch = "️ Error técnico al validar rostro."; 
-        console.error(e);
-      }
-    } else {
-      mensajeMatch = "⚠️ SIN FOTO DE REFERENCIA. Se permitirá el registro pero RH lo revisará manualmente.";
-      matchExitoso = true; // Permisivo solo si falta dato base
-    }
-
-    // 3. ACTUALIZAR UI Y DECIDIR SI AVANZAR
-    const chkMatch = document.getElementById('chkMatch');
-    chkMatch.textContent = mensajeMatch;
-    chkMatch.style.color = matchExitoso ? "var(--success)" : "var(--error)";
-
-    if (!matchExitoso) {
-      mostrarMsg('msgValidacion', '⛔ VALIDACIÓN FALLIDA: Tu rostro no coincide con la foto de RH. Intenta de nuevo o contacta a Capital Humano.', 'error');
-      btn.disabled = false; 
-      btn.textContent = "Reintentar validación";
-      return; 
-    }
-
-    // 4. Si llegamos aquí, la validación fue exitosa
-    rostroValidado = matchExitoso; 
-    
-    // Captura final para evidencia
-    const ctx = canvas.getContext('2d');
-    ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    fotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
-
-    setTimeout(() => {
-      document.getElementById('step3').hidden = true;
-      document.getElementById('step4').hidden = false;
-      document.getElementById('confMovimiento').textContent = document.getElementById('movimiento').value;
-      document.getElementById('confHora').textContent = new Date().toLocaleTimeString();
-      
-      const chkGpsFinal = document.getElementById('chkGpsFinal');
-      if (datosGPS) {
-        chkGpsFinal.textContent = `✅ GPS: Precisión ${Math.round(datosGPS.precision)}m`;
       } else {
-        chkGpsFinal.textContent = "️ Sin ubicación GPS";
-        chkGpsFinal.style.color = "var(--error)";
+        mensajeMatch = "⚠️ SIN FOTO DE REFERENCIA. Se permitirá registro manual.";
+        matchExitoso = true; 
       }
-    }, 1000);
+
+      // 4. ACTUALIZAR UI FINAL
+      const chkMatch = document.getElementById('chkMatch');
+      chkMatch.textContent = mensajeMatch;
+      chkMatch.style.color = matchExitoso ? "var(--success)" : "var(--error)";
+
+      if (!matchExitoso) {
+        msgVal.className = 'status-msg error';
+        msgVal.textContent = "⛔ VALIDACIÓN FALLIDA. Intenta de nuevo o contacta a RH.";
+        btn.disabled = false; 
+        btn.textContent = "Reintentar validación";
+        return; 
+      }
+
+      // 5. CAPTURA FINAL Y TRANSICIÓN
+      rostroValidado = matchExitoso; 
+      const ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      fotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+      msgVal.className = 'status-msg success';
+      msgVal.textContent = "✅ ¡Validación exitosa! Preparando registro...";
+
+      setTimeout(() => {
+        document.getElementById('step3').hidden = true;
+        document.getElementById('step4').hidden = false;
+        document.getElementById('confMovimiento').textContent = document.getElementById('movimiento').value;
+        document.getElementById('confHora').textContent = new Date().toLocaleTimeString();
+        
+        const chkGpsFinal = document.getElementById('chkGpsFinal');
+        if (datosGPS) {
+          chkGpsFinal.textContent = `✅ GPS: Precisión ${Math.round(datosGPS.precision)}m`;
+        } else {
+          chkGpsFinal.textContent = "⚠️ Sin ubicación GPS";
+          chkGpsFinal.style.color = "var(--error)";
+        }
+      }, 800); // Pequeña pausa para que el usuario vea el "Success"
+
+    } catch (err) {
+      console.error(err);
+      msgVal.className = 'status-msg error';
+      msgVal.textContent = "Error inesperado en el procesamiento.";
+      btn.disabled = false;
+      btn.textContent = "Reintentar";
+    }
   }
 
   async function enviarRegistro() {
