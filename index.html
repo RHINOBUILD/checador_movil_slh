@@ -92,9 +92,9 @@
 </main>
 
 <script>
-  // ⚙️ CONFIGURACIÓN
-  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzYWmvw3c0QMafg4WHzYzPNTIgKiZyuJcO9LeQzeCgwljKYvYlYNDAXknYFCTV_-NBC9A/exec"; 
-  const API_SECRET = "SLH_2026_X9Y"; // Debe coincidir con Propiedades del Script
+  // ⚙️ CONFIGURACIÓN DEL SISTEMA
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzYWmvw3c0QMafg4WHzYzPNTIgKiZyuJcO9LeQzeCgwljKYvYlYNDAXknYFCTV_-NBC9A/exec";
+  const API_SECRET = "SLH_2026_X9Y"; 
   const MODELS_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
 
   let empleadoActual = null;
@@ -103,6 +103,7 @@
   let rostroValidado = false;
   let fotoBase64 = "";
 
+  // Inicializar Face-API al cargar
   window.onload = async () => {
     mostrarMsg('msgBuscar', 'Cargando modelos de IA...', 'loading');
     try {
@@ -118,6 +119,7 @@
   async function buscarEmpleado() {
     const num = document.getElementById('numeroEmpleado').value.trim();
     if (!num) return mostrarMsg('msgBuscar', 'Ingresa un número.', 'error');
+    
     mostrarMsg('msgBuscar', 'Buscando...', 'loading');
     document.getElementById('btnBuscar').disabled = true;
 
@@ -125,18 +127,19 @@
       const url = `${WEB_APP_URL}?action=empleado&numero=${encodeURIComponent(num)}&key=${API_SECRET}`;
       const res = await fetch(url);
       const data = await res.json();
+      
       if (data.encontrado) {
         empleadoActual = data;
         document.getElementById('txtNombre').textContent = data.nombre;
         document.getElementById('txtSede').textContent = data.sede;
         document.getElementById('step1').hidden = true;
         document.getElementById('step2').hidden = false;
-        obtenerGPS();
+        obtenerGPS(); // Iniciar GPS en segundo plano
       } else {
         mostrarMsg('msgBuscar', 'Empleado no encontrado.', 'error');
       }
     } catch (err) {
-      mostrarMsg('msgBuscar', 'Error de conexión.', 'error');
+      mostrarMsg('msgBuscar', 'Error de conexión con el servidor.', 'error');
     } finally {
       document.getElementById('btnBuscar').disabled = false;
     }
