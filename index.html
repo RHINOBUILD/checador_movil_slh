@@ -191,7 +191,7 @@
     </div>
     <ul class="steps">
       <li id="stFace">⏳ Rostro dentro del óvalo</li>
-      <li id="stLive">⏳ Prueba de vida (parpadea)</li>
+      <li id="stLive">⏳ Prueba de vida (parpadea o gira la cabeza)</li>
       <li id="stMatch">⏳ Comparación con tu foto</li>
     </ul>
     <div id="decision" hidden>
@@ -222,7 +222,7 @@ const API_SECRET  = "SLH_2026_X9Y";
 const MODELS_URL  = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model";
 const UMBRAL      = 0.48;   // distancia facial máxima aceptada (menor = más estricto)
 const MUESTRAS    = 4;      // descriptores del rostro en vivo a promediar
-const TIEMPO_VIDA = 12000;  // ms para detectar el parpadeo antes de ofrecer alternativa
+const TIEMPO_VIDA = 15000;  // ms para la prueba de vida antes de ofrecer alternativa
 const AUTO_RESET  = 10;     // segundos para volver al inicio (modo kiosco)
 const LS_NUM = "slh_num", LS_COLA = "slh_cola";
 
@@ -388,59 +388,100 @@ async function iniciarValidacion() {
 function resetValidacionUI() {
   $("decision").hidden = true; $("btnCancelar").hidden = false;
   $("bar").style.width = "0%"; $("oval").className = "oval";
-  estado("stFace", "⏳ Rostro dentro del óvalo", ""); estado("stLive", "⏳ Prueba de vida (parpadea)", ""); estado("stMatch", "⏳ Comparación con tu foto", "");
+  estado("stFace", "⏳ Rostro dentro del óvalo", ""); estado("stLive", "⏳ Prueba de vida (parpadea o gira la cabeza)", ""); estado("stMatch", "⏳ Comparación con tu foto", "");
 }
 
 const ear = ojo => {
   const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   return (d(ojo[1], ojo[5]) + d(ojo[2], ojo[4])) / (2 * d(ojo[0], ojo[3]));
 };
+const centro = pts => ({ x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length });
+const percentil = (arr, q) => { const s = arr.slice().sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(q * s.length))]; };
 
+/**
+ * Prueba de vida con DOS métodos (basta uno):
+ *  1) Parpadeo: la apertura del ojo (EAR) cae ≥22 % bajo su nivel normal y vuelve a subir.
+ *  2) Movimiento: la cabeza gira hacia un lado y regresa al frente.
+ * El ciclo rápido solo detecta rostro + puntos faciales (≈10–20 cuadros/s en celular);
+ * el descriptor facial (lo más pesado) se calcula únicamente en algunos cuadros de frente.
+ */
 async function ciclo() {
   loopActivo = true;
   const v = $("video");
-  const opciones = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
-  const descriptores = [];
-  let earBase = 0, ojoCerrado = false, parpadeo = false, inicio = Date.now(), ultimaVista = 0;
+  const opciones = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.45 });
+  const descriptores = [], earHist = [];
+  let vivo = false, metodo = "", inicio = Date.now(), cuadro = 0;
+  let cerradoEn = 0, yaw0 = null, yawMin = 0, yawMax = 0, giro = false;
 
   while (loopActivo) {
-    const det = await faceapi.detectSingleFace(v, opciones).withFaceLandmarks().withFaceDescriptor();
+    const det = await faceapi.detectSingleFace(v, opciones).withFaceLandmarks();
     if (!loopActivo) return;
+    cuadro++;
 
     if (!det) {
       $("oval").className = "oval bad"; $("hint").textContent = "Coloca tu rostro dentro del óvalo";
       estado("stFace", "⏳ Rostro dentro del óvalo", "");
-      await dormir(120); continue;
+      await dormir(80); continue;
     }
-
-    const box = det.detection.box, ancho = v.videoWidth;
-    if (box.width < ancho * 0.28) {
+    const box = det.detection.box;
+    if (box.width < v.videoWidth * 0.26) {
       $("oval").className = "oval bad"; $("hint").textContent = "Acércate un poco más";
-      await dormir(120); continue;
+      await dormir(80); continue;
     }
     $("oval").className = "oval good"; estado("stFace", "✅ Rostro detectado", "ok");
-    ultimaVista = Date.now();
 
-    // Prueba de vida: parpadeo (EAR baja y vuelve a subir)
-    const e = (ear(det.landmarks.getLeftEye()) + ear(det.landmarks.getRightEye())) / 2;
-    earBase = Math.max(earBase * 0.98, e);
-    if (!parpadeo) {
-      if (e < earBase * 0.72) ojoCerrado = true;
-      else if (ojoCerrado && e > earBase * 0.88) { parpadeo = true; estado("stLive", "✅ Prueba de vida superada", "ok"); }
+    const lm = det.landmarks, ojoI = lm.getLeftEye(), ojoD = lm.getRightEye();
+    const e = (ear(ojoI) + ear(ojoD)) / 2;
+    const cI = centro(ojoI), cD = centro(ojoD), nariz = lm.getNose()[3];
+    const distOjos = Math.hypot(cD.x - cI.x, cD.y - cI.y) || 1;
+    const yaw = (nariz.x - (cI.x + cD.x) / 2) / distOjos;          // ≈0 de frente, ±0.2+ girado
+    const ahora = Date.now();
+
+    // Nivel normal de apertura: percentil 70 de los últimos cuadros con ojos abiertos
+    const base = earHist.length >= 5 ? percentil(earHist, 0.7) : null;
+    const abierto = !base || e > base * 0.85;
+    if (abierto) { earHist.push(e); if (earHist.length > 25) earHist.shift(); }
+
+    if (!vivo && base) {
+      // 1) Parpadeo
+      if (e < base * 0.78) cerradoEn = cerradoEn || ahora;
+      else if (cerradoEn && e > base * 0.88) {
+        if (ahora - cerradoEn < 1500) { vivo = true; metodo = "parpadeo"; }
+        cerradoEn = 0;
+      }
     }
-    if (e > earBase * 0.85) { descriptores.push(det.descriptor); if (descriptores.length > MUESTRAS) descriptores.shift(); }
+    if (!vivo) {
+      // 2) Giro de cabeza y regreso al frente
+      if (yaw0 === null && cuadro > 3) { yaw0 = yaw; yawMin = yawMax = yaw; }
+      if (yaw0 !== null) {
+        yawMin = Math.min(yawMin, yaw); yawMax = Math.max(yawMax, yaw);
+        if (Math.max(yawMax - yaw0, yaw0 - yawMin) > 0.22) giro = true;
+        if (giro && Math.abs(yaw - yaw0) < 0.08) { vivo = true; metodo = "movimiento de cabeza"; }
+      }
+    }
+    if (vivo) estado("stLive", `✅ Prueba de vida superada (${metodo})`, "ok");
 
-    const avance = (parpadeo ? 50 : 0) + Math.min(descriptores.length, MUESTRAS) / MUESTRAS * 50;
-    $("bar").style.width = avance + "%";
-    $("hint").textContent = parpadeo ? "Mantente quieto…" : "Parpadea lentamente 👁️";
+    // Descriptor facial: solo de frente y con ojos abiertos, uno cada 3 cuadros
+    const deFrente = yaw0 === null ? Math.abs(yaw) < 0.12 : Math.abs(yaw - yaw0) < 0.1;
+    if (descriptores.length < MUESTRAS && abierto && deFrente && cuadro % 3 === 0) {
+      const full = await faceapi.detectSingleFace(v, opciones).withFaceLandmarks().withFaceDescriptor();
+      if (!loopActivo) return;
+      if (full) descriptores.push(full.descriptor);
+    }
 
-    if (parpadeo && descriptores.length >= MUESTRAS) { loopActivo = false; return evaluar(descriptores, true); }
-    if (!parpadeo && Date.now() - inicio > TIEMPO_VIDA && descriptores.length >= MUESTRAS) {
+    const avance = (vivo ? 50 : Math.min(40, (ahora - inicio) / TIEMPO_VIDA * 40)) + descriptores.length / MUESTRAS * 50;
+    $("bar").style.width = Math.min(100, avance) + "%";
+    $("hint").textContent = vivo
+      ? (descriptores.length < MUESTRAS ? "Mira al frente, sin moverte…" : "Listo")
+      : (Math.floor((ahora - inicio) / 2500) % 2 ? "O gira un poco la cabeza y regresa ↔" : "Parpadea lentamente 👁️");
+
+    if (vivo && descriptores.length >= MUESTRAS) { loopActivo = false; return evaluar(descriptores, true); }
+    if (!vivo && ahora - inicio > TIEMPO_VIDA && descriptores.length >= MUESTRAS) {
       loopActivo = false;
-      estado("stLive", "⚠️ No se detectó parpadeo", "warn");
+      estado("stLive", "⚠️ No se detectó parpadeo ni movimiento", "warn");
       return evaluar(descriptores, false);
     }
-    await dormir(60);
+    await dormir(15);
   }
 }
 
@@ -468,7 +509,7 @@ function evaluar(descriptores, vivo) {
     NO_COINCIDE: "Tu rostro no coincidió con tu foto registrada.",
     ERROR_REF: "Tu foto de referencia no permite comparar el rostro.",
     SIN_REFERENCIA: "Aún no tienes foto de referencia registrada.",
-    OK: "No detectamos el parpadeo."
+    OK: "No detectamos parpadeo ni movimiento de cabeza."
   };
   $("hint").textContent = "Validación incompleta";
   $("decisionTxt").textContent = textos[resultado] + " Puedes intentarlo de nuevo o registrar tu checada para revisión de RH.";
