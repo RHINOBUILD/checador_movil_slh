@@ -17,6 +17,7 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 const BASE = self.registration.scope;                 // p. ej. https://rhinobuild.github.io/checador_movil_slh/
 const ICONO = new URL("icon-192.png", BASE).href;
+const INSIGNIA = new URL("badge-72.png", BASE).href;   // silueta blanca para la barra de estado
 
 // Actualiza el SW en cuanto se publica una versión nueva
 self.addEventListener("install", () => self.skipWaiting());
@@ -30,7 +31,7 @@ messaging.onBackgroundMessage(payload => {
   const d = payload.data || {};
   self.registration.showNotification(d.title || "Check-in requerido", {
     body: d.body || "Confirma tu estado y ubicación",
-    icon: ICONO, badge: ICONO, tag: "checkin-slh", renotify: true, requireInteraction: true,
+    icon: ICONO, badge: INSIGNIA, tag: "checkin-slh", renotify: true, requireInteraction: true,
     data: { url: d.url }
   });
 });
