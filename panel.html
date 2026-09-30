@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Panel RH · Checador Saint Luke's</title>
+  <link rel="icon" href="icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #07345b; --navy-2: #0b4a7d; --gold: #c8a24a; --gold-soft: #f4ead2;
+      --bg: #eef3f8; --card: #fff; --ink: #122c44; --muted: #5d7488; --line: #dde6ee;
+      --ok: #137a4c; --ok-bg: #e3f5ec; --warn: #9a6a06; --warn-bg: #fff4d9; --bad: #b3261e; --bad-bg: #fde8e7;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--ink); font-size: 14px; }
+    button, input, select { font: inherit; }
+    [hidden] { display: none !important; }
+
+    header { background: linear-gradient(160deg, var(--navy), var(--navy-2)); color: #fff; padding: 18px 24px; border-bottom: 4px solid var(--gold); }
+    .bar { max-width: 1240px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    header small { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+    header h1 { margin: 2px 0 0; font-size: 20px; font-weight: 800; }
+    .ctrls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .ctrls input[type=date] { border: 0; border-radius: 10px; padding: 9px 10px; }
+    .b { border: 0; border-radius: 10px; padding: 9px 14px; font-weight: 700; cursor: pointer; background: #fff; color: var(--navy); }
+    .b.gold { background: var(--gold); color: #2b2206; }
+    .b.ghost { background: rgba(255,255,255,.14); color: #fff; }
+    .upd { font-size: 12px; color: #c9d8e6; }
+
+    main { max-width: 1240px; margin: 20px auto; padding: 0 16px 40px; }
+    .card { background: var(--card); border-radius: 14px; box-shadow: 0 4px 18px rgba(7,52,91,.07); padding: 18px; margin-bottom: 16px; }
+
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .kpi { background: var(--card); border-radius: 14px; padding: 16px; box-shadow: 0 4px 18px rgba(7,52,91,.07); border-top: 4px solid var(--line); cursor: pointer; }
+    .kpi .v { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 4px; }
+    .kpi .l { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+    .kpi.ok { border-top-color: var(--ok); } .kpi.warn { border-top-color: var(--gold); } .kpi.bad { border-top-color: var(--bad); } .kpi.navy { border-top-color: var(--navy); }
+
+    .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+    @media (max-width: 900px) { .grid2 { grid-template-columns: minmax(0, 1fr); } .tools input { min-width: 0; flex: 1 1 100%; } }
+    h2 { font-size: 15px; margin: 0 0 12px; }
+    .muted { color: var(--muted); }
+
+    .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin-bottom: 12px; flex-wrap: wrap; }
+    .tab { border: 0; background: none; padding: 10px 12px; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; }
+    .tab.on { color: var(--navy); border-bottom-color: var(--gold); }
+    .tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    .tools input { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-width: 220px; }
+    .fil { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 12px; font-weight: 600; cursor: pointer; color: var(--muted); font-size: 13px; }
+    .fil.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+    .tools .sp { flex: 1; }
+    .b.line { background: #fff; border: 1px solid var(--line); color: var(--navy); }
+
+    .tw { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    td { padding: 10px; min-width: 60px; border-bottom: 1px solid #edf2f6; vertical-align: top; }
+    tr:hover td { background: #f7fafc; }
+    td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .tag { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: 999px; white-space: nowrap; background: #edf2f7; color: var(--muted); }
+    .tag.ok { background: var(--ok-bg); color: var(--ok); } .tag.warn { background: var(--warn-bg); color: var(--warn); } .tag.bad { background: var(--bad-bg); color: var(--bad); }
+    a { color: var(--navy-2); font-weight: 600; }
+    .empty { text-align: center; padding: 28px; color: var(--muted); }
+
+    .chart { position: relative; }
+    .chart svg { width: 100%; height: 220px; display: block; }
+    .tip { position: absolute; pointer-events: none; background: var(--ink); color: #fff; font-size: 12px; padding: 6px 9px; border-radius: 8px; white-space: nowrap; transform: translate(-50%, -110%); }
+
+    .login { max-width: 380px; margin: 60px auto; }
+    .login input { width: 100%; border: 2px solid var(--line); border-radius: 12px; padding: 12px; margin: 10px 0; }
+    .err { background: var(--bad-bg); color: var(--bad); padding: 10px; border-radius: 10px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <div><small>Capital Humano · Grupo Saint Luke's</small><h1>Panel de asistencia</h1></div>
+    <div class="ctrls" id="ctrls" hidden>
+      <input type="date" id="fecha">
+      <button class="b" onclick="cargar()">Actualizar</button>
+      <button class="b ghost" onclick="salir()">Salir</button>
+      <span class="upd" id="upd"></span>
+    </div>
+  </div>
+</header>
+
+<!-- Acceso -->
+<section class="card login" id="login">
+  <h2>Acceso de Capital Humano</h2>
+  <p class="muted">Usa la clave de administrador (ADMIN_KEY) del script.</p>
+  <input type="password" id="clave" placeholder="Clave de administrador" autocomplete="current-password">
+  <label class="muted"><input type="checkbox" id="recordar"> Recordar en este equipo</label>
+  <button class="b gold" style="width:100%;margin-top:12px" onclick="entrar()">Entrar</button>
+  <div class="err" id="loginErr" hidden></div>
+</section>
+
+<main id="app" hidden>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid2">
+    <section class="card">
+      <div class="tabs">
+        <button class="tab on" data-tab="registros">Registros</button>
+        <button class="tab" data-tab="ausentes">Sin entrada</button>
+        <button class="tab" data-tab="movil">Personal móvil</button>
+      </div>
+
+      <div class="tools">
+        <input type="search" id="buscar" placeholder="Buscar nombre o número…">
+        <span id="filtros"></span>
+        <span class="sp"></span>
+        <button class="b line" onclick="exportarCSV()">⬇ CSV</button>
+      </div>
+      <div class="tw"><table id="tabla"></table></div>
+    </section>
+
+    <section class="card">
+      <h2>Entradas por hora</h2>
+      <div class="chart" id="chart"></div>
+      <p class="muted" style="font-size:12.5px;margin:10px 0 0">Colaboradores únicos que registraron entrada en cada hora.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzYWmvw3c0QMafg4WHzYzPNTIgKiZyuJcO9LeQzeCgwljKYvYlYNDAXknYFCTV_-NBC9A/exec";
+const LS_KEY = "slh_admin_key";
+const MIN_ALERTA_CHECKIN = 90;   // minutos sin check-in para marcar alerta
+
+let datos = null, tab = "registros", filtro = "todos", clave = "", timer = null;
+const $ = id => document.getElementById(id);
+
+/* ============ ACCESO ============ */
+(function () {
+  clave = leer(sessionStorage, LS_KEY) || leer(localStorage, LS_KEY) || "";
+  $("fecha").value = hoyISO();
+  $("clave").addEventListener("keydown", e => { if (e.key === "Enter") entrar(); });
+  $("buscar").addEventListener("input", pintarTabla);
+  $("fecha").addEventListener("change", cargar);
+  document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    tab = t.dataset.tab; filtro = "todos";
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
+    pintarTabla();
+  });
+  if (clave) cargar();
+})();
+
+function entrar() {
+  clave = $("clave").value.trim();
+  if (!clave) return;
+  guardar(sessionStorage, LS_KEY, clave);
+  if ($("recordar").checked) guardar(localStorage, LS_KEY, clave);
+  cargar();
+}
+function salir() {
+  try { sessionStorage.removeItem(LS_KEY); localStorage.removeItem(LS_KEY); } catch (e) {}
+  location.reload();
+}
+
+/* ============ DATOS ============ */
+async function cargar() {
+  $("upd").textContent = "Actualizando…";
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=panel&adminKey=${encodeURIComponent(clave)}&fecha=${$("fecha").value}`);
+    const d = await res.json();
+    if (!d.ok) throw new Error(d.mensaje || "Error");
+    datos = d;
+    $("login").hidden = true; $("app").hidden = false; $("ctrls").hidden = false;
+    $("upd").textContent = "Actualizado " + new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+    pintarTodo();
+    clearInterval(timer);
+    if ($("fecha").value === hoyISO()) timer = setInterval(cargar, 120000);
+  } catch (e) {
+    if (!datos) {
+      $("login").hidden = false; $("app").hidden = true;
+      $("loginErr").textContent = e.message; $("loginErr").hidden = false;
+    } else $("upd").textContent = "⚠️ " + e.message;
+  }
+}
+
+/* ============ CLASIFICADORES ============ */
+const esRetardo = r => /^Retardo/.test(r.incidencia);
+const esAnticipada = r => /anticipada/.test(r.incidencia);
+const fueraRadio = r => String(r.dentro).toUpperCase() === "FALSE";
+const rostroRevision = r => String(r.rostro).toUpperCase() !== "TRUE";
+const sinCheckin = m => !m.ultimo || m.ultimo.minutos > MIN_ALERTA_CHECKIN;
+
+/* ============ KPIs ============ */
+function pintarTodo() {
+  const R = datos.registros;
+  const unicos = new Set(R.filter(r => r.movimiento === "Entrada").map(r => r.numero));
+  const k = [
+    { l: "Colaboradores con entrada", v: unicos.size, c: "navy", ir: ["registros", "entradas"] },
+    { l: "Retardos", v: R.filter(esRetardo).length, c: "warn", ir: ["registros", "retardos"] },
+    { l: "Fuera de radio", v: R.filter(fueraRadio).length, c: "bad", ir: ["registros", "fuera"] },
+    { l: "Rostro en revisión", v: R.filter(rostroRevision).length, c: "bad", ir: ["registros", "rostro"] },
+    { l: "Sin entrada (con horario)", v: datos.ausentes.length, c: "warn", ir: ["ausentes", "todos"] },
+    { l: `Móviles sin check-in > ${MIN_ALERTA_CHECKIN} min`, v: datos.movil.filter(m => m.notificaciones && sinCheckin(m)).length, c: "warn", ir: ["movil", "alerta"] }
+  ];
+  $("kpis").replaceChildren(...k.map(x => {
+    const d = el("div", "kpi " + x.c);
+    d.append(el("div", "l", x.l), el("div", "v", String(x.v)));
+    d.onclick = () => { tab = x.ir[0]; filtro = x.ir[1]; document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.tab === tab)); pintarTabla(); };
+    return d;
+  }));
+  pintarTabla();
+  pintarGrafica();
+}
+
+/* ============ TABLAS ============ */
+const FILTROS = {
+  registros: [["todos", "Todos"], ["entradas", "Entradas"], ["salidas", "Salidas"], ["retardos", "Retardos"], ["fuera", "Fuera de radio"], ["rostro", "Rostro en revisión"]],
+  ausentes: [["todos", "Todos"]],
+  movil: [["todos", "Todos"], ["alerta", "Sin check-in reciente"], ["sinnotif", "Sin notificaciones"]]
+};
+
+function filas() {
+  const q = $("buscar").value.trim().toLowerCase();
+  const match = x => !q || (x.nombre + " " + x.numero).toLowerCase().includes(q);
+  if (tab === "registros") {
+    const f = { todos: () => true, entradas: r => r.movimiento === "Entrada", salidas: r => r.movimiento === "Salida",
+      retardos: r => esRetardo(r) || esAnticipada(r), fuera: fueraRadio, rostro: rostroRevision }[filtro] || (() => true);
+    return datos.registros.filter(f).filter(match).slice().reverse();
+  }
+  if (tab === "ausentes") return datos.ausentes.filter(match);
+  const f = { todos: () => true, alerta: m => m.notificaciones && sinCheckin(m), sinnotif: m => !m.notificaciones }[filtro] || (() => true);
+  return datos.movil.filter(f).filter(match).sort((a, b) => (b.ultimo ? b.ultimo.minutos : 1e9) - (a.ultimo ? a.ultimo.minutos : 1e9));
+}
+
+function pintarTabla() {
+  if (!datos) return;
+  $("filtros").replaceChildren(...FILTROS[tab].map(([id, t]) => {
+    const b = el("button", "fil" + (filtro === id ? " on" : ""), t);
+    b.onclick = () => { filtro = id; pintarTabla(); };
+    return b;
+  }));
+
+  const lista = filas(), t = $("tabla");
+  let cab, fila;
+  if (tab === "registros") {
+    cab = ["Hora", "Colaborador", "Mov.", "Puntualidad", "Ubicación", "Rostro", "Foto"];
+    fila = r => [
+      td(r.hora, "num"),
+      tdPersona(r.nombre, r.numero),
+      td(r.movimiento === "Entrada" ? "🟢 Entrada" : "🔴 Salida"),
+      tdTag(r.incidencia || "—", esRetardo(r) || esAnticipada(r) ? "warn" : /Puntual|en horario/.test(r.incidencia) ? "ok" : ""),
+      tdTag(fueraRadio(r) ? `⚠ ${r.sedeDetectada || "Fuera"}${r.distancia !== "" ? " · " + r.distancia + " m" : ""}` : (r.sedeDetectada || r.sede || "—"), fueraRadio(r) ? "bad" : String(r.dentro).toUpperCase() === "TRUE" ? "ok" : ""),
+      tdTag(rostroRevision(r) ? "⚠ " + etiquetaRostro(r.rostro) : "✓ Validado", rostroRevision(r) ? "bad" : "ok"),
+      tdLink(r.foto, "Ver")
+    ];
+  } else if (tab === "ausentes") {
+    cab = ["Número", "Colaborador", "Sede", "Horario"];
+    fila = a => [td(a.numero, "num"), td(a.nombre), td(a.sede), td(a.horario, "num")];
+  } else {
+    cab = ["Colaborador", "Rol", "Zona", "Último check-in", "Estado / actividad", "Ubicación", "Avisos"];
+    fila = m => {
+      const u = m.ultimo;
+      return [
+        tdPersona(m.nombre, m.numero), td(m.rol), td(m.zona),
+        u ? tdTag(`${hace(u.minutos)} · ${u.fecha.slice(11)}`, u.minutos > MIN_ALERTA_CHECKIN ? "warn" : "ok") : tdTag("Nunca", "bad"),
+        td(u ? [u.detalle, u.comentario].filter(Boolean).join(" — ") : "—"),
+        u && u.lat ? tdLink(`https://www.google.com/maps?q=${u.lat},${u.lng}`, u.zona === "false" ? "⚠ Mapa (fuera)" : "Mapa") : td("—"),
+        tdTag(m.notificaciones ? "🔔 Activas" : "🔕 No", m.notificaciones ? "ok" : "")
+      ];
+    };
+  }
+
+  const thead = el("thead"), trh = el("tr");
+  cab.forEach(c => trh.append(el("th", "", c))); thead.append(trh);
+  const tbody = el("tbody");
+  if (!lista.length) { const tr = el("tr"), c = el("td", "empty", "Sin resultados"); c.colSpan = cab.length; tr.append(c); tbody.append(tr); }
+  lista.forEach(x => { const tr = el("tr"); fila(x).forEach(c => tr.append(c)); tbody.append(tr); });
+  t.replaceChildren(thead, tbody);
+}
+
+function etiquetaRostro(v) {
+  return { SUPERVISION_RH: "No coincidió", SIN_REFERENCIA: "Sin foto ref.", SIN_PRUEBA_VIDA: "Sin prueba de vida", FALSE: "No validado" }[String(v).toUpperCase()] || v;
+}
+
+/* ============ GRÁFICA ============ */
+function pintarGrafica() {
+  const porHora = new Array(24).fill(0), vistos = new Set();
+  datos.registros.filter(r => r.movimiento === "Entrada").forEach(r => {
+    if (vistos.has(r.numero)) return; vistos.add(r.numero);
+    porHora[Number(r.hora.slice(0, 2))]++;
+  });
+  let ini = porHora.findIndex(v => v > 0), fin = 23 - porHora.slice().reverse().findIndex(v => v > 0);
+  if (ini < 0) { $("chart").replaceChildren(el("div", "empty", "Sin entradas en esta fecha")); return; }
+  ini = Math.max(0, Math.min(ini, 6)); fin = Math.min(23, Math.max(fin, 20));
+  const horas = porHora.slice(ini, fin + 1), max = Math.max(...horas, 1);
+  const W = 420, H = 220, pl = 26, pb = 24, pt = 10, bw = (W - pl) / horas.length;
+  const ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const add = (tag, a, txt) => { const n = document.createElementNS(ns, tag); for (const k in a) n.setAttribute(k, a[k]); if (txt != null) n.textContent = txt; svg.append(n); return n; };
+  [0, Math.ceil(max / 2), max].forEach(v => {
+    const y = H - pb - (v / max) * (H - pb - pt);
+    add("line", { x1: pl, x2: W, y1: y, y2: y, stroke: "#e6edf3", "stroke-width": 1 });
+    add("text", { x: pl - 6, y: y + 4, "text-anchor": "end", "font-size": 10, fill: "#5d7488" }, v);
+  });
+  const tip = el("div", "tip"); tip.hidden = true;
+  horas.forEach((v, i) => {
+    const h = (v / max) * (H - pb - pt), x = pl + i * bw + 2, y = H - pb - h;
+    if (v > 0) add("path", { d: barra(x, y, bw - 4, h), fill: "#07345b" });
+    const hit = add("rect", { x: pl + i * bw, y: pt, width: bw, height: H - pb - pt, fill: "transparent" });
+    hit.addEventListener("mousemove", ev => {
+      const r = $("chart").getBoundingClientRect();
+      tip.textContent = `${ini + i}:00 – ${ini + i}:59 · ${v} entrada${v === 1 ? "" : "s"}`;
+      tip.style.left = (ev.clientX - r.left) + "px"; tip.style.top = (ev.clientY - r.top) + "px"; tip.hidden = false;
+    });
+    hit.addEventListener("mouseleave", () => tip.hidden = true);
+    if ((ini + i) % 2 === 0) add("text", { x: pl + i * bw + bw / 2, y: H - 6, "text-anchor": "middle", "font-size": 10, fill: "#5d7488" }, ini + i);
+  });
+  $("chart").replaceChildren(svg, tip);
+}
+function barra(x, y, w, h) {                    // barra con puntas superiores redondeadas (4 px)
+  const r = Math.min(4, w / 2, h);
+  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+}
+
+/* ============ CSV ============ */
+function exportarCSV() {
+  if (!datos) return;
+  const lista = filas();
+  const cols = tab === "registros"
+    ? ["hora", "numero", "nombre", "movimiento", "incidencia", "sede", "sedeDetectada", "distancia", "dentro", "rostro", "distanciaFacial", "origen", "foto"]
+    : tab === "ausentes" ? ["numero", "nombre", "sede", "horario"] : ["numero", "nombre", "rol", "zona", "notificaciones"];
+  const esc = v => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
+  const csv = "﻿" + [cols.join(",")].concat(lista.map(x => cols.map(c => esc(x[c])).join(","))).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  a.download = `checador_${tab}_${datos.fecha}.csv`; a.click();
+}
+
+/* ============ UTILIDADES ============ */
+function el(t, c, txt) { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; }
+function td(t, c) { return el("td", c || "", t == null || t === "" ? "—" : String(t)); }
+function tdTag(t, c) { const d = el("td"); d.append(el("span", "tag " + (c || ""), t)); return d; }
+function tdPersona(n, num) { const d = el("td"); d.style.minWidth = "190px"; d.append(el("div", "", n)); d.append(el("div", "muted", "#" + num)); return d; }
+function tdLink(url, t) {
+  const d = el("td");
+  if (!url || !/^https:\/\//.test(url)) { d.textContent = "—"; return d; }
+  const a = el("a", "", t); a.href = url; a.target = "_blank"; a.rel = "noopener"; d.append(a); return d;
+}
+function hace(min) { return min < 60 ? `hace ${min} min` : min < 1440 ? `hace ${Math.floor(min / 60)} h ${min % 60} min` : `hace ${Math.floor(min / 1440)} d`; }
+function hoyISO() { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+function leer(s, k) { try { return s.getItem(k); } catch (e) { return null; } }
+function guardar(s, k, v) { try { s.setItem(k, v); } catch (e) {} }
+</script>
+</body>
+</html>

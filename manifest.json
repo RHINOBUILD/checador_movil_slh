@@ -1,0 +1,20 @@
+{
+  "name": "Checador Saint Luke's",
+  "short_name": "Checador SLH",
+  "description": "Registro de asistencia con validación facial y check-in periódico — Grupo Saint Luke's Hospitals",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef3f8",
+  "theme_color": "#07345b",
+  "lang": "es-MX",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Check-in periódico", "url": "./checkin.html" },
+    { "name": "Checar asistencia", "url": "./index.html" }
+  ]
+}

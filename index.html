@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#07345b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Checador · Saint Luke's</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.js"></script>
+
+  <style>
+    :root {
+      --navy: #07345b; --navy-2: #0b4a7d; --navy-3: #0e5c96;
+      --gold: #c8a24a; --gold-soft: #f4ead2;
+      --bg: #eef3f8; --card: #ffffff; --ink: #122c44; --muted: #5d7488; --line: #d9e3ec;
+      --ok: #137a4c; --ok-bg: #e3f5ec; --warn: #9a6a06; --warn-bg: #fff4d9; --bad: #b3261e; --bad-bg: #fde8e7;
+      --r: 16px;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; min-height: 100%; }
+    body { font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+    button, input { font: inherit; }
+
+    /* ---------- Encabezado ---------- */
+    .top {
+      background: linear-gradient(160deg, var(--navy) 0%, var(--navy-2) 100%);
+      color: #fff; padding: calc(18px + env(safe-area-inset-top)) 20px 26px;
+      position: relative; overflow: hidden;
+    }
+    .top::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--gold); }
+    .brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .brand small { display: block; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+    .brand strong { font-size: 17px; font-weight: 800; letter-spacing: .01em; }
+    .net { font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,.12); white-space: nowrap; }
+    .net.off { background: #b3261e; }
+    .clock { margin-top: 18px; font-size: 44px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1; }
+    .clock .sec { font-size: 24px; color: #9fb6cc; font-weight: 700; }
+    .date { margin-top: 6px; font-size: 14px; color: #c9d8e6; }
+
+    main { max-width: 520px; margin: -14px auto 0; padding: 0 16px calc(28px + env(safe-area-inset-bottom)); position: relative; }
+    .card { background: var(--card); border-radius: var(--r); padding: 20px; box-shadow: 0 6px 24px rgba(7,52,91,.08); margin-bottom: 14px; }
+    h2 { font-size: 18px; margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+    [hidden] { display: none !important; }
+
+    /* ---------- Entradas y botones ---------- */
+    .num {
+      width: 100%; font-size: 30px; font-weight: 700; letter-spacing: .12em; text-align: center;
+      padding: 16px; border: 2px solid var(--line); border-radius: 14px; color: var(--navy); background: #f8fbfd; outline: none;
+    }
+    .num:focus { border-color: var(--navy-3); background: #fff; }
+    .check { display: flex; align-items: center; gap: 8px; margin: 12px 0 4px; font-size: 14px; color: var(--muted); }
+    .check input { width: 18px; height: 18px; accent-color: var(--navy); }
+    .btn {
+      width: 100%; border: 0; border-radius: 14px; padding: 16px; font-size: 16px; font-weight: 700; cursor: pointer;
+      background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px;
+      transition: transform .08s, opacity .2s;
+    }
+    .btn:active { transform: scale(.98); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn.gold { background: var(--gold); color: #2b2206; }
+    .btn.ghost { background: #e7eef5; color: var(--navy); }
+    .btn.warn { background: var(--warn); }
+
+    /* ---------- Tarjeta del colaborador ---------- */
+    .who { display: flex; gap: 14px; align-items: center; }
+    .avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--gold-soft) center/cover no-repeat; border: 3px solid var(--gold); flex: none;
+      display: grid; place-items: center; font-weight: 800; color: var(--navy); font-size: 22px; }
+    .who h3 { margin: 0; font-size: 17px; line-height: 1.25; }
+    .who p { margin: 3px 0 0; font-size: 13px; color: var(--muted); }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .chip { font-size: 12.5px; font-weight: 600; padding: 7px 11px; border-radius: 999px; background: #edf2f7; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+    .chip.ok { background: var(--ok-bg); color: var(--ok); }
+    .chip.warn { background: var(--warn-bg); color: var(--warn); }
+    .chip.bad { background: var(--bad-bg); color: var(--bad); }
+
+    .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
+    .seg button {
+      border: 2px solid var(--line); background: #fff; border-radius: 14px; padding: 16px 10px; font-weight: 700; font-size: 16px; cursor: pointer; color: var(--ink);
+    }
+    .seg button small { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 3px; }
+    .seg button.on[data-mov="Entrada"] { border-color: var(--ok); background: var(--ok-bg); color: var(--ok); }
+    .seg button.on[data-mov="Salida"] { border-color: var(--bad); background: var(--bad-bg); color: var(--bad); }
+
+    /* ---------- Cámara ---------- */
+    .cam { position: relative; width: 100%; aspect-ratio: 3/4; background: #0a1520; border-radius: 20px; overflow: hidden; }
+    .cam video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+    .oval {
+      position: absolute; left: 50%; top: 46%; width: 62%; aspect-ratio: 3/4; transform: translate(-50%, -50%);
+      border-radius: 50%; border: 4px solid rgba(255,255,255,.75); box-shadow: 0 0 0 9999px rgba(7,20,33,.45);
+      transition: border-color .25s;
+    }
+    .oval.good { border-color: #38d39f; }
+    .oval.bad { border-color: #ff6b61; }
+    .hint {
+      position: absolute; left: 12px; right: 12px; bottom: 14px; text-align: center; color: #fff; font-weight: 700; font-size: 16px;
+      background: rgba(7,20,33,.62); padding: 12px; border-radius: 12px; backdrop-filter: blur(4px);
+    }
+    .progress { height: 6px; background: rgba(255,255,255,.18); border-radius: 99px; margin-top: 8px; overflow: hidden; }
+    .progress i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .3s; }
+    .steps { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 8px; }
+    .steps li { font-size: 14px; display: flex; gap: 8px; align-items: center; color: var(--muted); }
+    .steps li.ok { color: var(--ok); } .steps li.bad { color: var(--bad); } .steps li.warn { color: var(--warn); }
+
+    /* ---------- Resultado ---------- */
+    .result { text-align: center; padding: 28px 20px; }
+    .badge { width: 88px; height: 88px; border-radius: 50%; margin: 0 auto 14px; display: grid; place-items: center; font-size: 44px; }
+    .badge.ok { background: var(--ok-bg); } .badge.warn { background: var(--warn-bg); } .badge.bad { background: var(--bad-bg); }
+    .result h2 { font-size: 22px; }
+    .big { font-size: 40px; font-weight: 800; color: var(--navy); margin: 6px 0; font-variant-numeric: tabular-nums; }
+    .facts { text-align: left; margin-top: 16px; display: grid; gap: 8px; }
+    .fact { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 10px 12px; background: #f4f7fa; border-radius: 10px; }
+    .fact b { font-weight: 700; text-align: right; }
+    .countdown { font-size: 13px; color: var(--muted); margin-top: 12px; }
+
+    .msg { margin-top: 12px; font-size: 14px; padding: 12px; border-radius: 12px; text-align: center; }
+    .msg.loading { background: #edf2f7; color: var(--muted); }
+    .msg.ok { background: var(--ok-bg); color: var(--ok); }
+    .msg.warn { background: var(--warn-bg); color: var(--warn); }
+    .msg.bad { background: var(--bad-bg); color: var(--bad); }
+
+    .queue { font-size: 13px; background: var(--warn-bg); color: var(--warn); padding: 10px 12px; border-radius: 12px; margin-bottom: 14px; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    .queue button { border: 0; background: var(--warn); color: #fff; border-radius: 8px; padding: 6px 10px; font-weight: 700; font-size: 12px; }
+    footer { text-align: center; font-size: 11.5px; color: var(--muted); margin-top: 18px; line-height: 1.5; }
+    .spin { width: 18px; height: 18px; border: 3px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: s 0.8s linear infinite; }
+    @keyframes s { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <div><small>Grupo Saint Luke's Hospitals</small><strong>Checador de asistencia</strong></div>
+    <span class="net" id="net">● En línea</span>
+  </div>
+  <div class="clock" id="clock">--:--</div>
+  <div class="date" id="date"></div>
+</header>
+
+<main>
+  <div class="queue" id="queueBox" hidden>
+    <span id="queueTxt"></span>
+    <button onclick="enviarCola(true)">Enviar ahora</button>
+  </div>
+
+  <!-- PASO 1 · Número de empleado -->
+  <section class="card" id="step1">
+    <h2>Identifícate</h2>
+    <p class="sub">Escribe tu número de empleado.</p>
+    <input class="num" id="numeroEmpleado" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="• • • • • •">
+    <label class="check"><input type="checkbox" id="recordar"> Recordar mi número en este teléfono</label>
+    <button class="btn" id="btnBuscar" disabled>Continuar</button>
+    <div class="msg loading" id="msgBuscar">Cargando reconocimiento facial…</div>
+  </section>
+
+  <!-- PASO 2 · Confirmar movimiento -->
+  <section class="card" id="step2" hidden>
+    <div class="who">
+      <div class="avatar" id="avatar"></div>
+      <div>
+        <h3 id="txtNombre"></h3>
+        <p id="txtSede"></p>
+      </div>
+    </div>
+    <div class="chips">
+      <span class="chip" id="chipGps">📡 Buscando GPS…</span>
+      <span class="chip" id="chipHorario" hidden></span>
+      <span class="chip" id="chipUltimo" hidden></span>
+      <span class="chip" id="chipRef">🧠 Preparando rostro…</span>
+    </div>
+    <div class="seg" id="seg">
+      <button data-mov="Entrada">🟢 Entrada<small id="sugEntrada"></small></button>
+      <button data-mov="Salida">🔴 Salida<small id="sugSalida"></small></button>
+    </div>
+    <button class="btn gold" id="btnCamara">📷 Validar rostro</button>
+    <button class="btn ghost" onclick="reiniciar()">No soy yo</button>
+  </section>
+
+  <!-- PASO 3 · Validación facial -->
+  <section class="card" id="step3" hidden>
+    <div class="cam">
+      <video id="video" autoplay playsinline muted></video>
+      <div class="oval" id="oval"></div>
+      <div class="hint"><span id="hint">Activando cámara…</span><div class="progress"><i id="bar"></i></div></div>
+    </div>
+    <ul class="steps">
+      <li id="stFace">⏳ Rostro dentro del óvalo</li>
+      <li id="stLive">⏳ Prueba de vida (parpadea)</li>
+      <li id="stMatch">⏳ Comparación con tu foto</li>
+    </ul>
+    <div id="decision" hidden>
+      <div class="msg warn" id="decisionTxt"></div>
+      <button class="btn warn" id="btnRevision">Registrar para revisión de RH</button>
+      <button class="btn ghost" id="btnReintentar">Intentar de nuevo</button>
+    </div>
+    <button class="btn ghost" id="btnCancelar" onclick="reiniciar()">Cancelar</button>
+  </section>
+
+  <!-- PASO 4 · Resultado -->
+  <section class="card result" id="step4" hidden>
+    <div class="badge" id="resBadge">✅</div>
+    <h2 id="resTitulo"></h2>
+    <div class="big" id="resHora"></div>
+    <div class="facts" id="resFacts"></div>
+    <button class="btn" onclick="reiniciar()">Listo</button>
+    <div class="countdown" id="countdown"></div>
+  </section>
+
+  <footer>Tu foto y ubicación se usan solo para validar tu asistencia.<br>Capital Humano · Grupo Saint Luke's</footer>
+</main>
+
+<script>
+/* =================== CONFIGURACIÓN =================== */
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzYWmvw3c0QMafg4WHzYzPNTIgKiZyuJcO9LeQzeCgwljKYvYlYNDAXknYFCTV_-NBC9A/exec";
+const API_SECRET  = "SLH_2026_X9Y";
+const MODELS_URL  = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model";
+const UMBRAL      = 0.48;   // distancia facial máxima aceptada (menor = más estricto)
+const MUESTRAS    = 4;      // descriptores del rostro en vivo a promediar
+const TIEMPO_VIDA = 12000;  // ms para detectar el parpadeo antes de ofrecer alternativa
+const AUTO_RESET  = 10;     // segundos para volver al inicio (modo kiosco)
+const LS_NUM = "slh_num", LS_COLA = "slh_cola";
+
+/* =================== ESTADO =================== */
+let modelosListos = false, emp = null, movimiento = "Entrada";
+let stream = null, gps = null, gpsWatch = null, refDescriptor = null, refEstado = "pendiente";
+let loopActivo = false, resetTimer = null;
+const $ = id => document.getElementById(id);
+
+/* =================== RELOJ Y RED =================== */
+function tick() {
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2, "0"), mm = String(d.getMinutes()).padStart(2, "0"), ss = String(d.getSeconds()).padStart(2, "0");
+  $("clock").innerHTML = `${hh}:${mm}<span class="sec">:${ss}</span>`;
+  const f = d.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" });
+  $("date").textContent = f.charAt(0).toUpperCase() + f.slice(1);
+}
+setInterval(tick, 1000); tick();
+
+function estadoRed() {
+  const on = navigator.onLine;
+  $("net").textContent = on ? "● En línea" : "● Sin conexión";
+  $("net").classList.toggle("off", !on);
+  if (on) enviarCola();
+}
+addEventListener("online", estadoRed); addEventListener("offline", estadoRed);
+
+/* =================== INICIO =================== */
+window.addEventListener("load", async () => {
+  estadoRed(); pintarCola();
+  const guardado = leerLS(LS_NUM);
+  if (guardado) { $("numeroEmpleado").value = guardado; $("recordar").checked = true; }
+  $("numeroEmpleado").addEventListener("input", e => {
+    e.target.value = e.target.value.replace(/\D/g, "");
+    $("btnBuscar").disabled = !modelosListos || !e.target.value;
+  });
+  $("numeroEmpleado").addEventListener("keydown", e => { if (e.key === "Enter" && !$("btnBuscar").disabled) buscar(); });
+  $("btnBuscar").addEventListener("click", buscar);
+  $("btnCamara").addEventListener("click", iniciarValidacion);
+  document.querySelectorAll("#seg button").forEach(b => b.addEventListener("click", () => elegirMovimiento(b.dataset.mov)));
+
+  try {
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODELS_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODELS_URL)
+    ]);
+    modelosListos = true;
+    msg("msgBuscar", "Listo. Ingresa tu número.", "ok");
+    $("btnBuscar").disabled = !$("numeroEmpleado").value;
+  } catch (e) {
+    msg("msgBuscar", "No se pudo cargar el reconocimiento facial. Revisa tu conexión y recarga.", "bad");
+  }
+});
+
+/* =================== PASO 1 → 2 =================== */
+async function buscar() {
+  const num = $("numeroEmpleado").value.trim();
+  if (!num) return;
+  $("btnBuscar").disabled = true;
+  msg("msgBuscar", "Buscando…", "loading");
+  try {
+    const data = await api(`?action=empleado&numero=${encodeURIComponent(num)}&key=${API_SECRET}`);
+    if (!data.encontrado) { msg("msgBuscar", "No encontramos ese número. Verifica o contacta a RH.", "bad"); return; }
+    emp = data;
+    if ($("recordar").checked) escribirLS(LS_NUM, num); else borrarLS(LS_NUM);
+    mostrarEmpleado();
+    iniciarGPS();
+    prepararReferencia();
+  } catch (e) {
+    msg("msgBuscar", "Sin conexión con el servidor. Intenta de nuevo.", "bad");
+  } finally {
+    $("btnBuscar").disabled = false;
+  }
+}
+
+function mostrarEmpleado() {
+  $("txtNombre").textContent = emp.nombre;
+  $("txtSede").textContent = emp.sede || "Sede no asignada";
+  const av = $("avatar");
+  if (emp.fotoUrl && emp.fotoUrl.startsWith("data:image")) { av.style.backgroundImage = `url("${emp.fotoUrl}")`; av.textContent = ""; }
+  else { av.style.backgroundImage = ""; av.textContent = iniciales(emp.nombre); }
+
+  const chH = $("chipHorario");
+  if (emp.excepcionHoy) { chH.textContent = "📅 " + emp.excepcionHoy; chH.className = "chip warn"; chH.hidden = false; }
+  else if (emp.horario) { chH.textContent = "🕘 " + emp.horario; chH.className = "chip"; chH.hidden = false; }
+  else chH.hidden = true;
+
+  const chU = $("chipUltimo");
+  if (emp.ultimoMovimiento) { chU.textContent = `↩ ${emp.ultimoMovimiento} ${emp.ultimaHora}`; chU.hidden = false; }
+  else chU.hidden = true;
+
+  elegirMovimiento(emp.sugerido || "Entrada");
+  $("sugEntrada").textContent = emp.sugerido === "Entrada" ? "Sugerido" : "";
+  $("sugSalida").textContent = emp.sugerido === "Salida" ? "Sugerido" : "";
+  mostrarPaso(2);
+}
+
+function elegirMovimiento(m) {
+  movimiento = m;
+  document.querySelectorAll("#seg button").forEach(b => b.classList.toggle("on", b.dataset.mov === m));
+}
+
+/* =================== GPS (mejor lectura en 20 s) =================== */
+function iniciarGPS() {
+  gps = null;
+  const chip = $("chipGps");
+  if (!navigator.geolocation) { chip.textContent = "⚠️ Sin GPS"; chip.className = "chip bad"; return; }
+  if (gpsWatch != null) navigator.geolocation.clearWatch(gpsWatch);
+  gpsWatch = navigator.geolocation.watchPosition(p => {
+    const c = p.coords;
+    if (!gps || c.accuracy < gps.precision) gps = { lat: c.latitude, lng: c.longitude, precision: c.accuracy };
+    const pr = Math.round(gps.precision);
+    chip.textContent = `📍 GPS ±${pr} m`;
+    chip.className = "chip " + (pr <= 50 ? "ok" : pr <= 150 ? "warn" : "bad");
+    if (gps.precision <= 20) detenerGPS();
+  }, err => {
+    if (!gps) { chip.textContent = err.code === 1 ? "⚠️ Permite la ubicación" : "⚠️ GPS no disponible"; chip.className = "chip bad"; }
+  }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+  setTimeout(detenerGPS, 20000);
+}
+function detenerGPS() { if (gpsWatch != null) { navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null; } }
+
+/* =================== FOTO DE REFERENCIA (en segundo plano) =================== */
+async function prepararReferencia() {
+  refDescriptor = null; refEstado = "pendiente";
+  const chip = $("chipRef");
+  chip.textContent = "🧠 Preparando rostro…"; chip.className = "chip";
+  if (!emp.fotoUrl || !emp.fotoUrl.startsWith("data:image")) {
+    refEstado = "sin"; chip.textContent = "⚠️ Sin foto de referencia"; chip.className = "chip warn"; return;
+  }
+  try {
+    const img = await cargarImagen(await redimensionar(emp.fotoUrl, 640));
+    const det = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 }))
+      .withFaceLandmarks().withFaceDescriptor();
+    if (!det) throw new Error("sin rostro");
+    refDescriptor = det.descriptor; refEstado = "ok";
+    chip.textContent = "🧠 Rostro listo"; chip.className = "chip ok";
+  } catch (e) {
+    refEstado = "error"; chip.textContent = "⚠️ Foto de referencia no válida"; chip.className = "chip warn";
+  }
+}
+
+/* =================== PASO 3 · CÁMARA + PRUEBA DE VIDA =================== */
+async function iniciarValidacion() {
+  mostrarPaso(3);
+  resetValidacionUI();
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+    const v = $("video"); v.srcObject = stream;
+    await new Promise(r => v.onloadedmetadata = r);
+    await v.play();
+    // Espera a la referencia si aún se está procesando (máx. 8 s)
+    const t0 = Date.now();
+    while (refEstado === "pendiente" && Date.now() - t0 < 8000) await dormir(150);
+    ciclo();
+  } catch (e) {
+    $("hint").textContent = "No se pudo abrir la cámara. Revisa los permisos.";
+    estado("stFace", "❌ Cámara sin permiso", "bad");
+  }
+}
+
+function resetValidacionUI() {
+  $("decision").hidden = true; $("btnCancelar").hidden = false;
+  $("bar").style.width = "0%"; $("oval").className = "oval";
+  estado("stFace", "⏳ Rostro dentro del óvalo", ""); estado("stLive", "⏳ Prueba de vida (parpadea)", ""); estado("stMatch", "⏳ Comparación con tu foto", "");
+}
+
+const ear = ojo => {
+  const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  return (d(ojo[1], ojo[5]) + d(ojo[2], ojo[4])) / (2 * d(ojo[0], ojo[3]));
+};
+
+async function ciclo() {
+  loopActivo = true;
+  const v = $("video");
+  const opciones = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+  const descriptores = [];
+  let earBase = 0, ojoCerrado = false, parpadeo = false, inicio = Date.now(), ultimaVista = 0;
+
+  while (loopActivo) {
+    const det = await faceapi.detectSingleFace(v, opciones).withFaceLandmarks().withFaceDescriptor();
+    if (!loopActivo) return;
+
+    if (!det) {
+      $("oval").className = "oval bad"; $("hint").textContent = "Coloca tu rostro dentro del óvalo";
+      estado("stFace", "⏳ Rostro dentro del óvalo", "");
+      await dormir(120); continue;
+    }
+
+    const box = det.detection.box, ancho = v.videoWidth;
+    if (box.width < ancho * 0.28) {
+      $("oval").className = "oval bad"; $("hint").textContent = "Acércate un poco más";
+      await dormir(120); continue;
+    }
+    $("oval").className = "oval good"; estado("stFace", "✅ Rostro detectado", "ok");
+    ultimaVista = Date.now();
+
+    // Prueba de vida: parpadeo (EAR baja y vuelve a subir)
+    const e = (ear(det.landmarks.getLeftEye()) + ear(det.landmarks.getRightEye())) / 2;
+    earBase = Math.max(earBase * 0.98, e);
+    if (!parpadeo) {
+      if (e < earBase * 0.72) ojoCerrado = true;
+      else if (ojoCerrado && e > earBase * 0.88) { parpadeo = true; estado("stLive", "✅ Prueba de vida superada", "ok"); }
+    }
+    if (e > earBase * 0.85) { descriptores.push(det.descriptor); if (descriptores.length > MUESTRAS) descriptores.shift(); }
+
+    const avance = (parpadeo ? 50 : 0) + Math.min(descriptores.length, MUESTRAS) / MUESTRAS * 50;
+    $("bar").style.width = avance + "%";
+    $("hint").textContent = parpadeo ? "Mantente quieto…" : "Parpadea lentamente 👁️";
+
+    if (parpadeo && descriptores.length >= MUESTRAS) { loopActivo = false; return evaluar(descriptores, true); }
+    if (!parpadeo && Date.now() - inicio > TIEMPO_VIDA && descriptores.length >= MUESTRAS) {
+      loopActivo = false;
+      estado("stLive", "⚠️ No se detectó parpadeo", "warn");
+      return evaluar(descriptores, false);
+    }
+    await dormir(60);
+  }
+}
+
+function evaluar(descriptores, vivo) {
+  let distancia = null, resultado;
+  if (refEstado === "ok") {
+    const ds = descriptores.map(d => faceapi.euclideanDistance(d, refDescriptor)).sort((a, b) => a - b);
+    distancia = ds[Math.floor(ds.length / 2)];           // mediana, robusta a un cuadro malo
+    resultado = distancia <= UMBRAL ? "OK" : "NO_COINCIDE";
+    estado("stMatch", resultado === "OK" ? `✅ Coincide (${similitud(distancia)}%)` : `❌ No coincide (${similitud(distancia)}%)`, resultado === "OK" ? "ok" : "bad");
+  } else {
+    resultado = refEstado === "sin" ? "SIN_REFERENCIA" : "ERROR_REF";
+    estado("stMatch", refEstado === "sin" ? "⚠️ Sin foto de referencia" : "⚠️ Foto de referencia no válida", "warn");
+  }
+
+  const foto = capturarFoto();
+  $("bar").style.width = "100%";
+
+  if (resultado === "OK" && vivo) return registrar(true, foto, distancia);
+
+  // Casos que requieren decisión del colaborador
+  const estadoRH = resultado === "SIN_REFERENCIA" ? "SIN_REFERENCIA"
+                 : resultado === "OK" && !vivo ? "SIN_PRUEBA_VIDA" : "SUPERVISION_RH";
+  const textos = {
+    NO_COINCIDE: "Tu rostro no coincidió con tu foto registrada.",
+    ERROR_REF: "Tu foto de referencia no permite comparar el rostro.",
+    SIN_REFERENCIA: "Aún no tienes foto de referencia registrada.",
+    OK: "No detectamos el parpadeo."
+  };
+  $("hint").textContent = "Validación incompleta";
+  $("decisionTxt").textContent = textos[resultado] + " Puedes intentarlo de nuevo o registrar tu checada para revisión de RH.";
+  $("decision").hidden = false; $("btnCancelar").hidden = true;
+  $("btnRevision").onclick = () => registrar(estadoRH, foto, distancia);
+  $("btnReintentar").onclick = () => { resetValidacionUI(); ciclo(); };
+}
+
+function capturarFoto() {
+  const v = $("video"), c = document.createElement("canvas");
+  const escala = Math.min(1, 640 / v.videoWidth);
+  c.width = Math.round(v.videoWidth * escala); c.height = Math.round(v.videoHeight * escala);
+  const ctx = c.getContext("2d");
+  ctx.translate(c.width, 0); ctx.scale(-1, 1);
+  ctx.drawImage(v, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", 0.72);
+}
+
+/* =================== REGISTRO =================== */
+async function registrar(rostro, foto, distancia) {
+  apagarCamara(); detenerGPS();
+  $("decision").hidden = true;
+  $("hint").textContent = "Registrando…";
+
+  const payload = {
+    tipo: "registro", api_key: API_SECRET,
+    numeroEmpleado: emp.numero, nombre: emp.nombre, sede: emp.sede, movimiento,
+    lat: gps ? gps.lat : "", lng: gps ? gps.lng : "", precision: gps ? Math.round(gps.precision) : "",
+    rostroValidado: rostro, distanciaFacial: distancia != null ? Number(distancia.toFixed(3)) : null,
+    horaDispositivo: new Date().toISOString(), fotoBase64: foto,
+    dispositivo: navigator.userAgent
+  };
+
+  try {
+    const r = await api("", payload);
+    if (!r.ok) throw Object.assign(new Error(r.mensaje || "El servidor rechazó el registro."), { servidor: true });
+    mostrarResultado(r, rostro);
+  } catch (e) {
+    if (e.servidor) return mostrarError(e.message);
+    encolar(payload);
+    mostrarResultado({ offline: true, hora: horaCorta(new Date()) }, rostro);
+  }
+}
+
+function mostrarResultado(r, rostro) {
+  const facts = [];
+  let tono = "ok", titulo = `${movimiento} registrada`;
+
+  if (r.offline) { tono = "warn"; titulo = `${movimiento} guardada sin conexión`; facts.push(["Estado", "Se enviará al volver la señal"]); }
+  if (r.duplicado) { tono = "warn"; titulo = "Ya estaba registrada"; facts.push(["Detalle", r.mensaje]); }
+  if (r.incidencia) {
+    facts.push(["Puntualidad", r.incidencia]);
+    if (/Retardo|anticipada/.test(r.incidencia)) tono = "warn";
+  }
+  if (r.dentroDeRadio === true) facts.push(["Ubicación", r.sedeDetectada]);
+  else if (r.dentroDeRadio === false) { tono = "warn"; facts.push(["Ubicación", r.sedeDetectada + (r.distanciaM !== "" ? ` · ${r.distanciaM} m` : "")]); }
+  if (rostro !== true) { tono = "warn"; facts.push(["Rostro", "En revisión por RH"]); }
+  else facts.push(["Rostro", "Validado ✓"]);
+
+  $("resBadge").className = "badge " + tono;
+  $("resBadge").textContent = tono === "ok" ? "✅" : "⚠️";
+  $("resTitulo").textContent = titulo;
+  $("resHora").textContent = r.hora || horaCorta(new Date());
+  $("resFacts").replaceChildren(...facts.map(([k, v]) => {
+    const d = document.createElement("div"); d.className = "fact";
+    const a = document.createElement("span"); a.textContent = k;
+    const b = document.createElement("b"); b.textContent = v;
+    d.append(a, b); return d;
+  }));
+  mostrarPaso(4);
+  if (navigator.vibrate) navigator.vibrate(tono === "ok" ? 80 : [60, 60, 60]);
+  cuentaRegresiva();
+}
+
+function mostrarError(texto) {
+  $("resBadge").className = "badge bad"; $("resBadge").textContent = "⛔";
+  $("resTitulo").textContent = "No se pudo registrar";
+  $("resHora").textContent = "";
+  const d = document.createElement("div"); d.className = "fact";
+  const s = document.createElement("span"); s.textContent = texto; d.append(s);
+  $("resFacts").replaceChildren(d);
+  mostrarPaso(4); cuentaRegresiva();
+}
+
+function cuentaRegresiva() {
+  let n = AUTO_RESET;
+  clearInterval(resetTimer);
+  $("countdown").textContent = `Volviendo al inicio en ${n} s`;
+  resetTimer = setInterval(() => {
+    n--; $("countdown").textContent = `Volviendo al inicio en ${n} s`;
+    if (n <= 0) reiniciar();
+  }, 1000);
+}
+
+/* =================== COLA OFFLINE =================== */
+function encolar(p) {
+  const cola = JSON.parse(leerLS(LS_COLA) || "[]");
+  cola.push(Object.assign({}, p, { offline: true }));
+  while (cola.length > 25) cola.shift();
+  if (!escribirLS(LS_COLA, JSON.stringify(cola))) {
+    // Sin espacio: se guarda sin foto para no perder la checada
+    cola[cola.length - 1].fotoBase64 = "";
+    escribirLS(LS_COLA, JSON.stringify(cola));
+  }
+  pintarCola();
+}
+
+let enviandoCola = false;
+async function enviarCola(manual) {
+  if (enviandoCola || !navigator.onLine) return;
+  let cola = JSON.parse(leerLS(LS_COLA) || "[]");
+  if (!cola.length) return;
+  enviandoCola = true;
+  const pendientes = [];
+  for (const p of cola) {
+    try { const r = await api("", p); if (!r.ok) console.warn("Descartada por servidor:", r.mensaje); }
+    catch (e) { pendientes.push(p); }
+  }
+  escribirLS(LS_COLA, JSON.stringify(pendientes));
+  enviandoCola = false;
+  pintarCola();
+  if (manual && !pendientes.length) alert("Checadas pendientes enviadas ✅");
+}
+
+function pintarCola() {
+  const n = JSON.parse(leerLS(LS_COLA) || "[]").length;
+  $("queueBox").hidden = !n;
+  $("queueTxt").textContent = `${n} checada${n === 1 ? "" : "s"} pendiente${n === 1 ? "" : "s"} de enviar`;
+}
+setInterval(() => enviarCola(), 60000);
+
+/* =================== UTILIDADES =================== */
+async function api(query, body) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 30000);
+  try {
+    const res = await fetch(WEB_APP_URL + query, body ? {
+      method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(body), signal: ctrl.signal
+    } : { signal: ctrl.signal });
+    return await res.json();
+  } finally { clearTimeout(t); }
+}
+
+function mostrarPaso(n) { [1, 2, 3, 4].forEach(i => $("step" + i).hidden = i !== n); scrollTo({ top: 0, behavior: "smooth" }); }
+function estado(id, t, c) { $(id).textContent = t; $(id).className = c || ""; }
+function msg(id, t, c) { $(id).textContent = t; $(id).className = "msg " + c; $(id).hidden = false; }
+function dormir(ms) { return new Promise(r => setTimeout(r, ms)); }
+function horaCorta(d) { return d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }); }
+function similitud(d) { return Math.max(0, Math.min(100, Math.round((1 - d) * 100))); }
+function iniciales(n) { return String(n || "").split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]).join(""); }
+function apagarCamara() { loopActivo = false; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; }
+function leerLS(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function escribirLS(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+function borrarLS(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+function cargarImagen(src) {
+  return new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = src; });
+}
+async function redimensionar(src, max) {
+  const img = await cargarImagen(src);
+  const k = Math.min(1, max / Math.max(img.width, img.height));
+  const c = document.createElement("canvas");
+  c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", 0.9);
+}
+
+function reiniciar() {
+  clearInterval(resetTimer);
+  apagarCamara(); detenerGPS();
+  emp = null; gps = null; refDescriptor = null; refEstado = "pendiente";
+  const guardado = leerLS(LS_NUM);
+  $("numeroEmpleado").value = guardado || "";
+  $("btnBuscar").disabled = !modelosListos || !$("numeroEmpleado").value;
+  msg("msgBuscar", modelosListos ? "Listo. Ingresa tu número." : "Cargando reconocimiento facial…", modelosListos ? "ok" : "loading");
+  mostrarPaso(1);
+}
+
+// PWA: registra el service worker (también habilita notificaciones en checkin.html)
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("firebase-messaging-sw.js").catch(() => {});
+</script>
+</body>
+</html>

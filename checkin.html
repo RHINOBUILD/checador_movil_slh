@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#07345b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Check-in · Saint Luke's</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js"></script>
+  <style>
+    :root {
+      --navy: #07345b; --navy-2: #0b4a7d; --gold: #c8a24a; --gold-soft: #f4ead2;
+      --bg: #eef3f8; --ink: #122c44; --muted: #5d7488; --line: #d9e3ec;
+      --ok: #137a4c; --ok-bg: #e3f5ec; --warn: #9a6a06; --warn-bg: #fff4d9; --bad: #b3261e; --bad-bg: #fde8e7;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+    button, input, textarea { font: inherit; }
+    [hidden] { display: none !important; }
+
+    .top { background: linear-gradient(160deg, var(--navy), var(--navy-2)); color: #fff; padding: calc(18px + env(safe-area-inset-top)) 20px 30px; position: relative; }
+    .top::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--gold); }
+    .top small { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+    .top h1 { margin: 4px 0 0; font-size: 22px; font-weight: 800; }
+    .top p { margin: 6px 0 0; color: #c9d8e6; font-size: 14px; }
+
+    main { max-width: 520px; margin: -16px auto 0; padding: 0 16px calc(28px + env(safe-area-inset-bottom)); position: relative; }
+    .card { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 6px 24px rgba(7,52,91,.08); margin-bottom: 14px; }
+    h2 { font-size: 17px; margin: 0 0 12px; }
+    .label { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 18px 0 10px; }
+
+    .who { display: flex; align-items: center; gap: 12px; }
+    .ini { width: 52px; height: 52px; border-radius: 50%; background: var(--gold-soft); border: 3px solid var(--gold); display: grid; place-items: center; font-weight: 800; color: var(--navy); }
+    .who h3 { margin: 0; font-size: 16px; }
+    .who p { margin: 3px 0 0; font-size: 13px; color: var(--muted); }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .chip { font-size: 12.5px; font-weight: 600; padding: 7px 11px; border-radius: 999px; background: #edf2f7; color: var(--muted); }
+    .chip.ok { background: var(--ok-bg); color: var(--ok); } .chip.warn { background: var(--warn-bg); color: var(--warn); } .chip.bad { background: var(--bad-bg); color: var(--bad); }
+
+    .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .opt { border: 2px solid var(--line); background: #fff; border-radius: 14px; padding: 14px 10px; font-weight: 700; font-size: 14.5px; cursor: pointer; color: var(--ink); text-align: center; min-height: 58px; }
+    .opt.on { border-color: var(--navy); background: #e6eef6; color: var(--navy); }
+    textarea, .num { width: 100%; border: 2px solid var(--line); border-radius: 12px; padding: 12px; font-size: 16px; outline: none; background: #f8fbfd; }
+    textarea:focus, .num:focus { border-color: #0e5c96; background: #fff; }
+    .num { font-size: 26px; font-weight: 700; text-align: center; letter-spacing: .1em; color: var(--navy); }
+
+    .btn { width: 100%; border: 0; border-radius: 14px; padding: 16px; font-size: 16px; font-weight: 700; cursor: pointer; background: var(--navy); color: #fff; margin-top: 16px; }
+    .btn:disabled { opacity: .45; }
+    .btn.gold { background: var(--gold); color: #2b2206; }
+    .btn.ghost { background: #e7eef5; color: var(--navy); }
+
+    .msg { margin-top: 12px; font-size: 14px; padding: 12px; border-radius: 12px; text-align: center; }
+    .msg.loading { background: #edf2f7; color: var(--muted); } .msg.ok { background: var(--ok-bg); color: var(--ok); }
+    .msg.warn { background: var(--warn-bg); color: var(--warn); } .msg.bad { background: var(--bad-bg); color: var(--bad); }
+
+    .notif { display: flex; gap: 12px; align-items: flex-start; }
+    .notif .ico { font-size: 26px; }
+    .notif p { margin: 4px 0 0; font-size: 13.5px; color: var(--muted); line-height: 1.45; }
+    .done { text-align: center; padding: 28px 20px; }
+    .done .ico { font-size: 54px; }
+    .done h2 { font-size: 21px; margin: 8px 0 4px; }
+    .done p { color: var(--muted); margin: 0; }
+    .banner { position: fixed; left: 12px; right: 12px; top: calc(12px + env(safe-area-inset-top)); background: var(--navy); color: #fff; border-left: 5px solid var(--gold); padding: 14px 16px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.25); z-index: 9; font-weight: 600; }
+  </style>
+</head>
+<body>
+<div class="banner" id="banner" hidden></div>
+
+<header class="top">
+  <small>Grupo Saint Luke's Hospitals</small>
+  <h1>Check-in periódico</h1>
+  <p id="subtitulo">Reporta tu estado y ubicación</p>
+</header>
+
+<main>
+  <!-- Sin número en el enlace -->
+  <section class="card" id="cardNumero" hidden>
+    <h2>¿Cuál es tu número de empleado?</h2>
+    <input class="num" id="inNumero" inputmode="numeric" maxlength="10" autocomplete="off">
+    <button class="btn" id="btnNumero">Continuar</button>
+  </section>
+
+  <div class="msg loading" id="status">Cargando…</div>
+
+  <!-- Formulario -->
+  <section class="card" id="cardForm" hidden>
+    <div class="who">
+      <div class="ini" id="ini"></div>
+      <div><h3 id="userName"></h3><p id="userRol"></p></div>
+    </div>
+    <div class="chips">
+      <span class="chip" id="chipGps">📡 Buscando GPS…</span>
+      <span class="chip" id="chipUltimo" hidden></span>
+    </div>
+
+    <div class="label" id="lblOpciones"></div>
+    <div class="opts" id="opts"></div>
+
+    <div class="label">Comentario (opcional)</div>
+    <textarea id="comentario" rows="3" maxlength="500" placeholder="Ej. Tráfico pesado, visita pospuesta…"></textarea>
+
+    <button class="btn" id="btnSubmit" disabled>Registrar check-in</button>
+    <div class="msg" id="msgForm" hidden></div>
+  </section>
+
+  <!-- Confirmación -->
+  <section class="card done" id="cardDone" hidden>
+    <div class="ico" id="doneIco">✅</div>
+    <h2 id="doneTitulo">Check-in registrado</h2>
+    <p id="doneTxt"></p>
+    <button class="btn ghost" onclick="location.reload()">Hacer otro check-in</button>
+  </section>
+
+  <!-- Notificaciones -->
+  <section class="card" id="cardNotif" hidden>
+    <div class="notif">
+      <div class="ico">🔔</div>
+      <div>
+        <h2 style="margin:0">Recordatorios en este teléfono</h2>
+        <p id="notifTxt">Actívalos para recibir el aviso de check-in cada hora durante tu turno.</p>
+      </div>
+    </div>
+    <button class="btn gold" id="btnNotif">Activar notificaciones</button>
+    <div class="msg" id="msgNotif" hidden></div>
+  </section>
+</main>
+
+<script>
+/* =================== CONFIGURACIÓN =================== */
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzYWmvw3c0QMafg4WHzYzPNTIgKiZyuJcO9LeQzeCgwljKYvYlYNDAXknYFCTV_-NBC9A/exec";
+const API_SECRET  = "SLH_2026_X9Y";
+// Firebase Console > Configuración del proyecto > Cloud Messaging > Certificados push web > Par de claves
+const VAPID_KEY   = "PEGA_AQUI_TU_CLAVE_VAPID";
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDiz476SH-JewBi-_wKuy1TLa431h9Wr3g",
+  authDomain: "checador-facial-slh.firebaseapp.com",
+  projectId: "checador-facial-slh",
+  storageBucket: "checador-facial-slh.firebasestorage.app",
+  messagingSenderId: "878984080471",
+  appId: "1:878984080471:web:adaa7416ab4a5b673e4712"
+};
+const LS_NUM = "slh_checkin_num";
+
+let user = null, gps = null, seleccion = "";
+const $ = id => document.getElementById(id);
+
+/* =================== INICIO =================== */
+(function init() {
+  const params = new URLSearchParams(location.search);
+  const numero = params.get("numero") || leerLS(LS_NUM);
+  if (!numero) {
+    $("status").hidden = true; $("cardNumero").hidden = false;
+    $("btnNumero").onclick = () => {
+      const n = $("inNumero").value.replace(/\D/g, "");
+      if (n) { escribirLS(LS_NUM, n); location.search = "?numero=" + encodeURIComponent(n); }
+    };
+    return;
+  }
+  escribirLS(LS_NUM, numero);
+  cargar(numero);
+})();
+
+async function cargar(numero) {
+  try {
+    const data = await api(`?action=datosCheckIn&numero=${encodeURIComponent(numero)}&key=${API_SECRET}`);
+    if (!data.encontrado) return fatal("Tu número no está habilitado para check-ins. Contacta a Capital Humano.");
+    if (!data.activo) return fatal("Tu check-in está desactivado. Contacta a Capital Humano.");
+    if (!data.rol) return fatal("Tu rol no está configurado. Contacta a Capital Humano.");
+    user = data;
+    pintarFormulario();
+    obtenerGPS();
+    prepararNotificaciones();
+  } catch (e) {
+    fatal("Sin conexión con el servidor. Revisa tu señal e intenta de nuevo.");
+  }
+}
+
+function pintarFormulario() {
+  $("status").hidden = true; $("cardForm").hidden = false;
+  $("ini").textContent = String(user.nombre).split(/\s+/).slice(0, 2).map(p => p[0]).join("");
+  $("userName").textContent = user.nombre;
+  $("userRol").textContent = `${user.rol === "Ambulancia" ? "🚑 Ambulancia" : "💼 Comercial"} · ${user.sedeZona || ""}`;
+  if (user.ultimoCheckIn) { $("chipUltimo").textContent = "↩ Último: " + user.ultimoCheckIn; $("chipUltimo").hidden = false; }
+  $("lblOpciones").textContent = user.rol === "Ambulancia" ? "Estado actual de la unidad" : "Actividad realizada";
+
+  const cont = $("opts");
+  (user.opciones || []).forEach(op => {
+    const b = document.createElement("button");
+    b.className = "opt"; b.type = "button"; b.textContent = op;
+    b.onclick = () => {
+      seleccion = op;
+      cont.querySelectorAll(".opt").forEach(x => x.classList.toggle("on", x === b));
+      $("btnSubmit").disabled = false;
+    };
+    cont.appendChild(b);
+  });
+  $("btnSubmit").onclick = enviar;
+}
+
+/* =================== GPS =================== */
+function obtenerGPS() {
+  const chip = $("chipGps");
+  if (!navigator.geolocation) { chip.textContent = "⚠️ Sin GPS"; chip.className = "chip bad"; return; }
+  const id = navigator.geolocation.watchPosition(p => {
+    const c = p.coords;
+    if (!gps || c.accuracy < gps.precision) gps = { lat: c.latitude, lng: c.longitude, precision: c.accuracy };
+    const pr = Math.round(gps.precision);
+    chip.textContent = `📍 GPS ±${pr} m`;
+    chip.className = "chip " + (pr <= 50 ? "ok" : pr <= 150 ? "warn" : "bad");
+    if (gps.precision <= 25) navigator.geolocation.clearWatch(id);
+  }, err => {
+    if (!gps) { chip.textContent = err.code === 1 ? "⚠️ Permite la ubicación" : "⚠️ GPS no disponible"; chip.className = "chip bad"; }
+  }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+  setTimeout(() => navigator.geolocation.clearWatch(id), 20000);
+}
+
+/* =================== ENVÍO =================== */
+async function enviar() {
+  const btn = $("btnSubmit");
+  if (!seleccion) return;
+  if (!gps && !confirm("Aún no hay ubicación GPS. ¿Enviar el check-in sin ubicación?")) return;
+  btn.disabled = true; btn.textContent = "Enviando…";
+
+  const payload = {
+    tipo: "checkin", api_key: API_SECRET,
+    numeroEmpleado: user.numero,
+    lat: gps ? gps.lat : "", lng: gps ? gps.lng : "", precision: gps ? Math.round(gps.precision) : "",
+    estado: user.rol === "Ambulancia" ? seleccion : "",
+    actividad: user.rol === "Comercial" ? seleccion : "",
+    comentario: $("comentario").value.trim()
+  };
+
+  try {
+    const r = await api("", payload);
+    if (!r.ok) throw Object.assign(new Error(r.mensaje || "El servidor rechazó el check-in."), { servidor: true });
+    $("cardForm").hidden = true; $("cardDone").hidden = false;
+    $("doneTitulo").textContent = `Check-in registrado · ${r.hora || ""}`;
+    let txt = seleccion;
+    if (r.dentroDeZona === false) { txt += " · Fuera de tu zona asignada"; $("doneIco").textContent = "⚠️"; }
+    if (r.dentroDeZona === "SIN GPS") { txt += " · Sin ubicación"; $("doneIco").textContent = "⚠️"; }
+    $("doneTxt").textContent = txt;
+    if (navigator.vibrate) navigator.vibrate(80);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = "Reintentar";
+    msg("msgForm", e.servidor ? e.message : "Sin conexión. Revisa tu señal e intenta de nuevo.", "bad");
+  }
+}
+
+/* =================== NOTIFICACIONES PUSH =================== */
+const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const esStandalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+let messaging = null;
+
+async function prepararNotificaciones() {
+  const soportado = "serviceWorker" in navigator && "Notification" in window && "PushManager" in window;
+  $("cardNotif").hidden = false;
+
+  if (esIOS && !esStandalone) {
+    $("notifTxt").textContent = "En iPhone primero agrega esta página a tu pantalla de inicio: botón Compartir → “Agregar a inicio”. Luego ábrela desde ese ícono y activa las notificaciones.";
+    $("btnNotif").hidden = true; return;
+  }
+  if (!soportado) {
+    $("notifTxt").textContent = "Este navegador no permite notificaciones. Usa Chrome en Android o instala la app en tu pantalla de inicio.";
+    $("btnNotif").hidden = true; return;
+  }
+
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    messaging = firebase.messaging();
+    messaging.onMessage(p => aviso((p.notification && p.notification.title) || "Check-in requerido"));
+  } catch (e) { console.warn(e); }
+
+  if (Notification.permission === "denied") {
+    $("notifTxt").textContent = "Bloqueaste las notificaciones. Actívalas en los ajustes del navegador para este sitio.";
+    $("btnNotif").hidden = true; return;
+  }
+  if (Notification.permission === "granted" && user.notificaciones) {
+    // Ya activas: renueva el token en silencio por si cambió
+    $("notifTxt").textContent = "Activas en este teléfono ✓";
+    $("btnNotif").hidden = true;
+    registrarToken(true);
+    return;
+  }
+  $("btnNotif").onclick = () => registrarToken(false);
+}
+
+async function registrarToken(silencioso) {
+  const btn = $("btnNotif");
+  try {
+    if (VAPID_KEY.startsWith("PEGA_")) throw new Error("Falta configurar la clave VAPID.");
+    if (!silencioso) { btn.disabled = true; btn.textContent = "Activando…"; }
+    const permiso = await Notification.requestPermission();
+    if (permiso !== "granted") throw new Error("No diste permiso de notificaciones.");
+    const reg = await navigator.serviceWorker.register("firebase-messaging-sw.js");
+    await navigator.serviceWorker.ready;
+    const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+    if (!token) throw new Error("No se obtuvo el token del dispositivo.");
+    const r = await api("", { tipo: "tokenPush", api_key: API_SECRET, numeroEmpleado: user.numero, token });
+    if (!r.ok) throw new Error(r.mensaje);
+    if (!silencioso) {
+      btn.hidden = true;
+      $("notifTxt").textContent = "Activas en este teléfono ✓";
+      msg("msgNotif", "Listo. Recibirás el recordatorio durante tu turno.", "ok");
+    }
+  } catch (e) {
+    if (silencioso) return console.warn(e);
+    btn.disabled = false; btn.textContent = "Activar notificaciones";
+    msg("msgNotif", e.message, "bad");
+  }
+}
+
+/* =================== UTILIDADES =================== */
+async function api(query, body) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 25000);
+  try {
+    const res = await fetch(WEB_APP_URL + query, body ? {
+      method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(body), signal: ctrl.signal
+    } : { signal: ctrl.signal });
+    return await res.json();
+  } finally { clearTimeout(t); }
+}
+function fatal(t) { msg("status", t, "bad"); }
+function msg(id, t, c) { const el = $(id); el.textContent = t; el.className = "msg " + c; el.hidden = false; }
+function aviso(t) { const b = $("banner"); b.textContent = "🔔 " + t; b.hidden = false; setTimeout(() => b.hidden = true, 6000); }
+function leerLS(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function escribirLS(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+</script>
+</body>
+</html>
