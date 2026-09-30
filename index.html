@@ -178,28 +178,52 @@
     }
   }
 
-        async function capturarYValidar() {
+          // FUNCIÓN AUXILIAR: Redimensiona imagen base64 a máximo 600x600px
+  function redimensionarImagenBase64(dataUri, maxAncho = 600, maxAlto = 600) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let ancho = img.width;
+        let alto = img.height;
+        
+        // Calcular proporción manteniendo aspect ratio
+        if (ancho > maxAncho || alto > maxAlto) {
+          const ratio = Math.min(maxAncho / ancho, maxAlto / alto);
+          ancho = Math.floor(ancho * ratio);
+          alto = Math.floor(alto * ratio);
+        }
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = ancho;
+        canvas.height = alto;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, ancho, alto);
+        
+        // Comprimir a JPEG 85% para reducir tamaño
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => reject(new Error('No se pudo cargar la imagen'));
+      img.src = dataUri;
+    });
+  }
+
+  async function capturarYValidar() {
     const btn = document.getElementById('btnCapturar');
     const msgVal = document.getElementById('msgValidacion');
     
-    // 1. FEEDBACK INMEDIATO PARA QUE EL USUARIO NO DUDE
     btn.disabled = true; 
     btn.textContent = "⏳ Procesando...";
     msgVal.className = 'status-msg loading';
     msgVal.style.display = 'block';
-    msgVal.textContent = "Analizando biometría (esto toma unos segundos)...";
+    msgVal.textContent = "Analizando biometría...";
     
-    // Desactivamos temporalmente la detección en video para liberar recursos del CPU
-    // Esto hace que la captura sea mucho más rápida en móviles
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvasOverlay');
-    
-    // Ajustamos el canvas al tamaño real del video para evitar redimensionamientos costosos
     canvas.width = video.videoWidth; 
     canvas.height = video.videoHeight;
     
     try {
-      // 2. DETECCIÓN OPTIMIZADA (inputSize 224 es más rápido que 320 o 416 en móviles)
+      // 1. DETECCIÓN DEL ROSTRO EN VIVO
       const deteccion = await faceapi.detectSingleFace(
         video, 
         new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
@@ -208,30 +232,41 @@
       if (!deteccion) {
         msgVal.className = 'status-msg error';
         msgVal.textContent = "❌ No se detectó rostro. Acerca tu cara o mejora la luz.";
-        document.getElementById('chkFace').textContent = "❌ Rostro no detectado";
-        document.getElementById('chkFace').style.color = "var(--error)";
         btn.disabled = false; 
         btn.textContent = "Reintentar captura";
         return; 
       }
 
-      // Dibujar cuadro de confirmación visual
+      // Dibujar cuadro de confirmación
       const displaySize = { width: canvas.width, height: canvas.height };
       faceapi.matchDimensions(canvas, displaySize);
       const resizedDetections = faceapi.resizeResults(deteccion, displaySize);
       faceapi.draw.drawDetections(canvas, resizedDetections);
 
-      // 3. VALIDACIÓN CONTRA REFERENCIA
+      // 2. VALIDACIÓN CONTRA REFERENCIA (CON REDIMENSIONAMIENTO)
       let matchExitoso = false;
       let mensajeMatch = "";
+      let modoSupervision = false;
       const UMBRAL_SENSIBILIDAD = 0.48; 
 
       if (empleadoActual.fotoUrl && empleadoActual.fotoUrl.startsWith('data:image')) {
-        msgVal.textContent = "Comparando con foto de referencia...";
+        msgVal.textContent = "Procesando foto de referencia...";
         
         try {
-          const imgRef = await faceapi.fetchImage(empleadoActual.fotoUrl);
-          const deteccionRef = await faceapi.detectSingleFace(imgRef, new faceapi.TinyFaceDetectorOptions()).withFaceDescriptor();
+          // ⭐ CLAVE: Redimensionar la foto ANTES de pasarla a face-api
+          // Esto reduce el tamaño de 3-5MB a ~50KB y evita errores de memoria
+          const fotoRedimensionada = await redimensionarImagenBase64(
+            empleadoActual.fotoUrl, 
+            600, 600
+          );
+          
+          msgVal.textContent = "Comparando rostros...";
+          
+          const imgRef = await faceapi.fetchImage(fotoRedimensionada);
+          const deteccionRef = await faceapi.detectSingleFace(
+            imgRef, 
+            new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 })
+          ).withFaceDescriptor();
           
           if (deteccionRef) {
             const matcher = new faceapi.FaceMatcher(
@@ -247,25 +282,48 @@
               mensajeMatch = `✅ Rostro coincide (${porcentaje}% confianza)`;
             } else {
               mensajeMatch = `❌ Rostro NO coincide. Distancia: ${match.distance.toFixed(2)}`;
+              modoSupervision = true;
             }
           } else {
-            mensajeMatch = "⚠️ Error en foto de referencia.";
+            mensajeMatch = "⚠️ No se detectó rostro en foto de referencia";
+            modoSupervision = true;
           }
         } catch (e) { 
-          mensajeMatch = "️ Error técnico al validar."; 
-          console.error(e);
+          console.error("Error en validación:", e);
+          mensajeMatch = "⚠️ Error técnico al validar foto de referencia";
+          modoSupervision = true;
         }
       } else {
-        mensajeMatch = "⚠️ SIN FOTO DE REFERENCIA. Se permitirá registro manual.";
-        matchExitoso = true; 
+        mensajeMatch = "⚠️ SIN FOTO DE REFERENCIA";
+        modoSupervision = true;
+        matchExitoso = true;
       }
 
-      // 4. ACTUALIZAR UI FINAL
+      // 3. ACTUALIZAR UI
       const chkMatch = document.getElementById('chkMatch');
       chkMatch.textContent = mensajeMatch;
-      chkMatch.style.color = matchExitoso ? "var(--success)" : "var(--error)";
+      chkMatch.style.color = matchExitoso || modoSupervision ? "var(--success)" : "var(--error)";
 
-      if (!matchExitoso) {
+      // 4. MODO SUPERVISIÓN: Permitir registro pero marcar para revisión
+      if (!matchExitoso && modoSupervision) {
+        msgVal.className = 'status-msg';
+        msgVal.style.background = '#fff4db';
+        msgVal.style.color = '#75510c';
+        msgVal.textContent = "⚠️ Validación biométrica fallida. Se registrará para revisión manual de RH.";
+        
+        setTimeout(() => {
+          if (confirm("Tu rostro no coincidió con la foto de referencia. ¿Deseas registrar tu asistencia de todos modos? RH revisará esta checada manualmente.")) {
+            continuarRegistro(true);
+          } else {
+            btn.disabled = false;
+            btn.textContent = "Reintentar validación";
+            msgVal.style.display = 'none';
+          }
+        }, 500);
+        return;
+      }
+
+      if (!matchExitoso && !modoSupervision) {
         msgVal.className = 'status-msg error';
         msgVal.textContent = "⛔ VALIDACIÓN FALLIDA. Intenta de nuevo o contacta a RH.";
         btn.disabled = false; 
@@ -273,38 +331,47 @@
         return; 
       }
 
-      // 5. CAPTURA FINAL Y TRANSICIÓN
-      rostroValidado = matchExitoso; 
-      const ctx = canvas.getContext('2d');
-      ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      fotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
-
-      msgVal.className = 'status-msg success';
-      msgVal.textContent = "✅ ¡Validación exitosa! Preparando registro...";
-
-      setTimeout(() => {
-        document.getElementById('step3').hidden = true;
-        document.getElementById('step4').hidden = false;
-        document.getElementById('confMovimiento').textContent = document.getElementById('movimiento').value;
-        document.getElementById('confHora').textContent = new Date().toLocaleTimeString();
-        
-        const chkGpsFinal = document.getElementById('chkGpsFinal');
-        if (datosGPS) {
-          chkGpsFinal.textContent = `✅ GPS: Precisión ${Math.round(datosGPS.precision)}m`;
-        } else {
-          chkGpsFinal.textContent = "⚠️ Sin ubicación GPS";
-          chkGpsFinal.style.color = "var(--error)";
-        }
-      }, 800); // Pequeña pausa para que el usuario vea el "Success"
+      continuarRegistro(false);
 
     } catch (err) {
       console.error(err);
       msgVal.className = 'status-msg error';
-      msgVal.textContent = "Error inesperado en el procesamiento.";
+      msgVal.textContent = "Error inesperado: " + err.message;
       btn.disabled = false;
       btn.textContent = "Reintentar";
     }
+  }
+
+  function continuarRegistro(modoSupervision) {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvasOverlay');
+    
+    rostroValidado = modoSupervision ? "SUPERVISION_RH" : true;
+    
+    const ctx = canvas.getContext('2d');
+    ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    fotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+    const msgVal = document.getElementById('msgValidacion');
+    msgVal.className = 'status-msg success';
+    msgVal.textContent = modoSupervision 
+      ? "✅ Registro marcado para revisión de RH" 
+      : "✅ ¡Validación exitosa!";
+
+    setTimeout(() => {
+      document.getElementById('step3').hidden = true;
+      document.getElementById('step4').hidden = false;
+      document.getElementById('confMovimiento').textContent = document.getElementById('movimiento').value;
+      document.getElementById('confHora').textContent = new Date().toLocaleTimeString();
+      
+      const chkGpsFinal = document.getElementById('chkGpsFinal');
+      if (datosGPS) {
+        chkGpsFinal.textContent = `✅ GPS: Precisión ${Math.round(datosGPS.precision)}m`;
+      } else {
+        chkGpsFinal.textContent = "⚠️ Sin ubicación GPS";
+      }
+    }, 800);
   }
 
   async function enviarRegistro() {
